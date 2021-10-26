@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <h1>Robot coordinates</h1>
+    <form action="/action_page.php">
+      <label for="lat">Latitude:</label>
+      <input type="text" id="lat" name="lat" /><br /><br />
+       
+      <input
+        type="radio"
+        id="north"
+        name="latitude_dir"
+        value="North"
+        checked
+      />
+        <label for="north">North</label><br />
+        <input type="radio" id="south" name="latitude_dir" value="South" />  
+      <label for="south">South</label><br /><br />
+
+      <label for="long">Longitude:</label>
+      <input type="text" id="long" name="long" /><br /><br />
+       
+      <input type="radio" id="east" name="longitude_dir" value="East" checked />
+        <label for="east">East</label><br />
+        <input type="radio" id="west" name="longitude_dir" value="West" />  
+      <label for="west">West</label><br /><br />
+      <button type="button" id="move">Move</button><br /><br />
+    </form>
+    <div
+      style="
+        height: 200px;
+        width: 300px;
+        border: 1px solid #ccc;
+        font: 16px/26px Georgia, Garamond, Serif;
+        overflow: auto;
+        line-height: 10px;
+      "
+      id="message-box"
+    ></div>
+  </body>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+  <script type="module" src="index.js"></script>
+</html>
