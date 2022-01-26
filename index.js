@@ -26,7 +26,6 @@ $(document).ready(function () {
         sendGoToCommand($("#lat").val(), $("#long").val(), lat_dir, long_dir)
         addMesssage("Coordinates sent", "s")
         if (!isNaN($("#lat").val()) && $("#lat").val() != "") {
-            console.log("AS")
             currLocation.lat = parseFloat($("#lat").val());
             if (lat_dir == "S") {
                 currLocation.lat = -currLocation.lat
@@ -61,11 +60,6 @@ $(document).ready(function () {
     $("#backward").mousedown(function () {
         sendMoveCommand("moveBackward")
         addMesssage("Move backward command sent", "s")
-    });
-
-    $("#random_num").mousedown(function () {
-        sendMoveCommand("randomNum")
-        addMesssage("Getting random number", "s")
     });
 
     $(document).keydown(function (event) {
@@ -196,7 +190,7 @@ function sendGoToCommand(lat, long, lat_dir, long_dir) {
     ];
     $.ajax({
         type: 'POST',
-        url: "http://127.0.0.1:5000/goToCoordinates",
+        url: "http://192.168.43.226:5000/goToCoordinates",
         data: JSON.stringify(data),
         contentType: "application/json",
         dataType: "text",
@@ -210,7 +204,7 @@ function sendGoToCommand(lat, long, lat_dir, long_dir) {
 function sendMoveCommand(command) {
     $.ajax({
         type: 'POST',
-        url: "http://127.0.0.1:5000/" + command,
+        url: "http://10.0.0.243:5000/" + command,
         contentType: "application/json",
         dataType: "text",
         success: function (response) {
