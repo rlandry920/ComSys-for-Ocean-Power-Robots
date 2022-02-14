@@ -2,19 +2,9 @@ var currLocation = { lat: 37.2284, lng: -80.4234 };
 var moveToLocation = { lat: 37.2284, lng: -80.4234 };
 var markerShown = false;
 
-var map, currLocationMarker, goToMarker;
-var images = ["reindeer1.PNG", "reindeer2.PNG", "reindeer3.PNG", "reindeer4.PNG", "reindeer5.PNG", "reindeer6.PNG", "reindeer7.PNG", "reindeer8.PNG", "reindeer9.PNG"];
-var i = 0;
-var renew = setInterval(function () {
-    if (images.length == i) {
-        i = 0;
-    }
-    else {
-        document.getElementById("robot_image").src = images[i];
-        i++;
+var robot_flask_url = "http://192.168.0.16:5001/"
 
-    }
-}, 1000);
+var map, currLocationMarker, goToMarker;
 
 $(document).ready(function () {
     var pressedKey = -1;
@@ -127,6 +117,10 @@ $(document).ready(function () {
         deleteMarker();
     });
 
+    $("#get_camera_data").mousedown(function () {
+        sendGetCameraDataCommand()
+    });
+
     google.maps.event.addListener(map, 'click', function (event) {
         placeMarker(event.latLng);
     });
@@ -190,7 +184,7 @@ function sendGoToCommand(lat, long, lat_dir, long_dir) {
     ];
     $.ajax({
         type: 'POST',
-        url: "http://192.168.43.226:5000/goToCoordinates",
+        url: robot_flask_url + "goToCoordinates",
         data: JSON.stringify(data),
         contentType: "application/json",
         dataType: "text",
@@ -204,7 +198,7 @@ function sendGoToCommand(lat, long, lat_dir, long_dir) {
 function sendMoveCommand(command) {
     $.ajax({
         type: 'POST',
-        url: "http://10.0.0.243:5000/" + command,
+        url: robot_flask_url + command,
         contentType: "application/json",
         dataType: "text",
         success: function (response) {
@@ -236,15 +230,16 @@ function initMap() {
         center: currLocation,
         streetViewControl: false,
     });
-    const image = "boat_marker.png"
-    // The marker, positioned at Uluru
+    const image = "{{ url_for('static',filename = 'boat_marker.png') }}"
+    console.log(image)
+    // The current location marker
     currLocationMarker = new google.maps.Marker({
         position: currLocation,
         map: map,
         icon: image
     });
 
-    // The marker, positioned at Uluru
+    // The destination marker
     goToMarker = new google.maps.Marker({
         position: moveToLocation,
         map: map,

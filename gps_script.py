@@ -6,14 +6,14 @@ import math
 #  West is 270
 
 
-curr_lat = 39.099912
-curr_long = -94.581213
+curr_lat = 37.2284
+curr_long = -80.4234
 curr_dir = 0
 
 # go_to_lat = input("Enter the latitude you want to go to: ")
 # go_to_long = input("Enter the longitude you want to go: ")
-go_to_lat = 38.627089
-go_to_long = -90.200203
+go_to_lat = 38.0336
+go_to_long = -78.5080
 
 
 def find_bearing(lat1, long1, lat2, long2):
@@ -32,17 +32,6 @@ def find_bearing(lat1, long1, lat2, long2):
         B_degrees += 360
 
     return B_degrees
-
-
-def find_angle(lat1, long1, lat2, long2):
-    dx = long2-long1
-    dy = lat2-lat1
-    B_radians = math.atan2(dx, dy)
-    B_degrees = (B_radians*180)/math.pi
-    if(B_degrees < 0):
-        B_degrees += 360
-
-    print(B_degrees)
 
 
 def get_curr_dir():
@@ -74,14 +63,14 @@ def find_turn_dir(curr_dir, bearing):
 def find_distance(lat1, long1, lat2, long2):
 
     R = 6371000  # radius of Earth in meters
-    phi_1 = math.radians(lat1)
-    phi_2 = math.radians(lat2)
+    phi_1 = lat1 * (math.pi/180)
+    phi_2 = lat2 * (math.pi/180)
 
-    delta_phi = math.radians(lat2 - lat1)
-    delta_lambda = math.radians(long2 - long1)
+    delta_phi = (lat2 - lat1) * (math.pi/180)
+    delta_lambda = (long2 - long1) * (math.pi/180)
 
-    a = math.sin(delta_phi / 2.0) ** 2 + math.cos(phi_1) * \
-        math.cos(phi_2) * math.sin(delta_lambda / 2.0) ** 2
+    a = math.pow(math.sin(delta_phi / 2), 2) + math.cos(phi_1) * \
+        math.cos(phi_2) * math.pow(math.sin(delta_lambda / 2), 2)
 
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
@@ -91,7 +80,7 @@ def find_distance(lat1, long1, lat2, long2):
 
 
 def find_path_to_coord(lat1, long1, lat2, long2):
-    bearing = find_bearing(curr_lat, curr_long, go_to_lat, go_to_long)
+    bearing = find_bearing(lat1, long1, lat2, long2)
     print("Bearing: " + str(bearing) + " degrees")
 
     robot_dir = get_curr_dir()
@@ -109,7 +98,14 @@ def find_path_to_coord(lat1, long1, lat2, long2):
 
     dist = find_distance(lat1, long1, lat2, long2)
 
-    print("Moving " + str(dist) + " meters forward")
+    if(dist < 1000):
+        print("Moving " + str(round(dist, 2)) + " m forward")
+    else:
+        print("Moving " + str(round(dist/1000, 2)) + " km forward")
 
 
-find_path_to_coord(curr_lat, curr_long, go_to_lat, go_to_lat)
+print("Current Position: " + str(curr_lat) + ", " + str(curr_long))
+print("Current Direction: " + str(curr_dir))
+print("Destination Position: " + str(go_to_lat) + ", " + str(go_to_long))
+
+find_path_to_coord(curr_lat, curr_long, go_to_lat, go_to_long)

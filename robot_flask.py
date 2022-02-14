@@ -1,6 +1,9 @@
 #!flask/bin/python
 import sys
-from flask import Flask, render_template, request, redirect, Response
+from flask import Flask, request, Response
+from camera import Camera
+import base64
+import io
 import random
 import json
 
@@ -93,4 +96,5 @@ def stopMoveBackward():
 
 if __name__ == '__main__':
     get_feather_ip()
-    app.run(host="0.0.0.0")  # Set host to 0.0.0.0 to run flask externally
+    # Set host to 0.0.0.0 to run flask externally
+    app.run(host="0.0.0.0", port=5001)

@@ -40,12 +40,12 @@
       <button type="button" id="right">Turn Right</button><br /><br />
       <button type="button" id="backward">Backward</button><br /><br />
       <button type="button" id="refresh_map">Refresh</button><br /><br />
-      <button type="button" id="delete_marker">Delete Marker</button
-      ><br /><br />
+      <button type="button" id="delete_marker">Delete Marker</button>
+      <br /><br />
 
       <img
         id="robot_image"
-        src="reindeer1.PNG"
+        src="{{ url_for('video_feed') }}"
         width="250"
         height="200"
         alt="some text"
@@ -74,5 +74,5 @@
     </div>
   </body>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-  <script type="module" src="index.js"></script>
+  <script src="{{url_for('script')}}"></script>
 </html>
