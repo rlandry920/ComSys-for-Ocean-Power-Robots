@@ -13,21 +13,24 @@ logging.basicConfig(filename='landbase.log',
 
 logger = logging.getLogger(__name__)
 
+display_resolution = (240, 120)
+
+# .start(mode=CommMode.HANDSHAKE)
+# .stop()
+# .send_packet()
+# .recv_packet() -> None
 
 def main():
     logger.info("Landbase starting...")
     comm_handler = CommHandler()
-    in_queue, in_lock = comm_handler.get_ingress_tuple()
     comm_handler.start()
+    print("Connection with robot established!")
     fps.start()
-    logger.info("Landbase started!")
     try:
         while True:
-            if len(in_queue) > 0:
-                packet = None
-                with in_lock:
-                    packet = in_queue.pop()
-                digest_img_packet(packet)
+            if comm_handler.recv_flag():
+                packet = comm_handler.recv_packet()
+                digest_packet(packet)
     except KeyboardInterrupt:
         pass
     finally:
@@ -39,16 +42,19 @@ def main():
         logger.info("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
 
 
-def digest_img_packet(packet: Packet):
-    if packet.m_type != MsgType.IMAGE:
+def digest_packet(packet: Packet):
+    if packet is None:
         return
-
-    decode_word = np.fromstring(packet.m_payload, dtype=np.uint8)
-    frame = cv2.imdecode(packet.m_payload, cv2.IMREAD_COLOR)
-    cv2.imshow('frame', frame)
-    cv2.waitKey(1)
-
-    fps.update()
+    elif packet.type == MsgType.TEXT:
+        print(packet.data.decode('utf-8'))
+    elif packet.type == MsgType.IMAGE:
+        decode_word = np.frombuffer(packet.data, dtype=np.uint8)
+        frame = cv2.resize(cv2.imdecode(decode_word, cv2.IMREAD_COLOR), display_resolution)
+        cv2.imshow('frame', frame)
+        cv2.waitKey(1)
+        fps.update()
+    else:
+        print(f'Received packet (ID: {packet.id} of type {packet.type})')
 
 
 if __name__ == "__main__":
