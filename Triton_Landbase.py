@@ -15,6 +15,11 @@ logger = logging.getLogger(__name__)
 
 display_resolution = (240, 120)
 
+# .start(mode=CommMode.HANDSHAKE)
+# .stop()
+# .send_packet()
+# .recv_packet() -> None
+
 def main():
     logger.info("Landbase starting...")
     comm_handler = CommHandler()

@@ -1,5 +1,10 @@
 from enum import Enum
 import numpy as np
+import struct
+
+value = 5.13482358
+value2 = 6512.65165
+b= struct.pack('f', value)
 
 # Triton Datagram
 # Bytes: 0        1        2        3
@@ -42,6 +47,7 @@ class MsgType(Enum):
     GPS_CMD = b'\x0B'
 
     IP = b'\x0C'  # Data is an IP datagram to be forwarded (NOT IMPLEMENTED BY RELEASE)
+
 
 
 class Packet:
