@@ -9,27 +9,32 @@ import cv2
 
 class USBCameraStream:
     def __init__(self):
-        self.stream = cv2.VideoCapture(0)
-        (self.grabbed, self.frame) = self.stream.read()
+        self.stream = None
+        self.frame = None
+        self.grabbed = None
         self.stopped = True
+        self.t = Thread(target=self.__update)
 
     def __del__(self):
-        self.stream.release()
+        self.stop()
 
     def start(self):
-        self.stopped = False
-        Thread(target=self.update, args=()).start()
-        return self
+        if self.stopped:
+            self.stream = cv2.VideoCapture(0)
+            self.stopped = False
+            self.t.start()
+            return self
 
-    def update(self):
-        while True:
-            if self.stopped:
-                return
-
+    def __update(self):
+        while not self.stopped:
             (self.grabbed, self.frame) = self.stream.read()
 
     def read(self):
         return self.frame
 
     def stop(self):
-        self.stopped = True
+        if not self.stopped:
+            self.stopped = True
+            self.t.join()
+            self.stream.release()
+            self.stream = None
