@@ -57,7 +57,6 @@ class RFD900:
             self.read_buf += self.radio.read(read_len)
 
             if read_len > 0:
-                logger.debug(f"read_buf {len(self.read_buf)}: {self.read_buf[0:16]}")
                 # Reset timer if any bytes were added
                 self.flush_timer = time.time() + FLUSH_TIME
 

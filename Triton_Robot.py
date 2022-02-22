@@ -1,6 +1,6 @@
 import logging
 from SensorLib.CameraHandler import CameraHandler
-from CommSys.CommHandler import CommHandler
+from CommSys.CommHandler import CommHandler, CommMode
 from CommSys.Packet import MsgType, Packet
 
 logging.basicConfig(filename='robot.log',
@@ -12,6 +12,20 @@ cam_handler = CameraHandler(comm_handler)
 
 LIVE_VIDEO = True
 
+
+def tx_window_test():
+    comm_handler.start(mode=CommMode.DEBUG)
+
+    for i in range(15):
+        comm_handler.send_packet(Packet(ptype=MsgType.TEXT, pid=0, data=(b'Message #'+str(i).encode('utf-8'))))
+
+    try:
+        while True:
+            pass
+    except KeyboardInterrupt:
+        pass
+    finally:
+        comm_handler.stop()
 
 def main():
     logging.info("Robot starting...")
@@ -70,4 +84,4 @@ def digest_packet(packet: Packet):
 
 
 if __name__ == "__main__":
-    main()
+    tx_window_test()

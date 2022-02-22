@@ -2,9 +2,8 @@ import queue
 
 from CommSys.Packet import Packet, MsgType, NUM_ID_BYTES
 from CommSys.RFD900 import RFD900
-from threading import Thread
 from multiprocessing import Process, Lock, Queue
-from threading import Timer
+from threading import Thread, Timer
 import logging
 import time
 from enum import Enum
@@ -73,7 +72,7 @@ class CommHandler(Process):
         return not self.in_queue.empty()
 
     def start(self, mode=CommMode.HANDSHAKE):
-        self.comm_mode = mode
+        self.change_mode(mode)
         Process.start(self)
         if mode == CommMode.HANDSHAKE:
             # If in handshake mode, try to establish connection within timeout period
@@ -317,7 +316,7 @@ class CommHandler(Process):
             raise FlowControlError(f'Acknowledgment for unsent packet ({self.tx_base + index}) received.')
 
         logger.debug(f"Acknowledgement received for packet (ID: {self.tx_base + index}).")
-
+        print(self.tx_window)
         # Turn off resend timer
         self.tx_window[index]["timer"].cancel()
         # Replace with ACK
