@@ -1,7 +1,10 @@
+from CommSys.Packet import Packet, MsgType
+import struct
+import sys
 import requests
 
 
-def sendDirectionCommand(direction):
+def sendDirectionCommand(direction, commHandler):
     # move_params = {
     #     "type": "direct",
     #     "direction": direction
@@ -10,7 +13,31 @@ def sendDirectionCommand(direction):
     #     f"http://{FEATHER_M0}/move?type=direct&direction={direction}")
     # print(r.text)
     # return r.text
-    return f"Moving {direction}"
+    if(direction == "turnLeft"):
+        left = 1
+        right = 0
+    elif(direction == "turnRight"):
+        left = 0
+        right = 1
+    elif(direction == "moveForward"):
+        left = 1
+        right = 1
+    elif(direction == "moveBackward"):
+        left = -1
+        right = -1
+    elif(direction == "stop"):
+        left = 0
+        right = 0
+    else:
+        return
+    motor_command = struct.pack('f', left) + \
+        struct.pack('f', right) + bytes([0])
+
+    motor_command_packet = Packet(MsgType.MTR_CMD, 0, motor_command, False)
+
+    commHandler.send_packet(motor_command_packet)
+
+    return f"Robot {direction}"
 
 
 def getCoordinates(data):
@@ -40,14 +67,13 @@ def checkCoordinates(latitude, longitude):
     else:
         return None
 
-# def makePathToCoordinates():
-
-
 # Cannot implement below for demo due to limitations on how the Arduino acts as an I2C-slave :(
 # @app.route('/randomNum', methods=['POST', 'DELETE'])
 # def randomNum():
 #     r = requests.post("http://<FeatherM0>:<port>/query")
 #     return r.text
+
+
 def get_feather_ip():
     global FEATHER_M0
     FEATHER_M0 = input(
