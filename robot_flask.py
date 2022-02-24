@@ -45,23 +45,13 @@ def output():
 @app.route('/goToCoordinates', methods=['POST', 'DELETE'])
 def goToCoordinates():
     data = request.get_json()[0]
-    latitude, longitude = getCoordinates(data)
+    latitude, longitude = getStringCoordinates(data)
     error = checkCoordinates(latitude, longitude)
 
     if(error != None):
         return error
     else:
-        move_params = {
-            "type": "coords",
-            "latitude": latitude,
-            "longitude": longitude
-        }
-        url = f"http://{FEATHER_M0}/move?type=coords&latitude={str(latitude)}&longitude={str(longitude)}"
-        print(url)
-        r = requests.post(url
-                          )
-        print(r.status_code)
-        return r.text
+        return sendMoveToCommand(float(latitude), float(longitude), comm_handler)
 
 
 @ app.route('/move', methods=['POST', 'DELETE'])

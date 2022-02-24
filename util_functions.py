@@ -40,7 +40,17 @@ def sendDirectionCommand(direction, commHandler):
     return f"Robot {direction}"
 
 
-def getCoordinates(data):
+def sendMoveToCommand(latitude, longitude, commHandler):
+    move_command = struct.pack('f', latitude) + \
+        struct.pack('f', longitude) + bytes([0])
+
+    motor_command_packet = Packet(MsgType.GPS_CMD, 0, move_command, False)
+
+    commHandler.send_packet(motor_command_packet)
+    return f"Robot moving to ({round(latitude,4)}, {round(longitude,4)})"
+
+
+def getStringCoordinates(data):
     latitude = ""
     longitude = ""
     if("lat_py" in data):
