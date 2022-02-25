@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="https://cdn.jsdelivr.net/npm/css-toggle-switch@latest/dist/toggle-switch.css"
+    />
+  </head>
+  <body>
+    <div style="float: left">
+      <form action="/action_page.php">
+        <p id="curr_lat">Current latitude:</p>
+        <p id="curr_long">Current longitude:</p>
+        <p id="curr_dir">Current direction:</p>
+        <label for="lat">New Latitude:</label>
+        <input type="text" id="lat" name="lat" /><br /><br />
+
+        <input
+          type="radio"
+          id="north"
+          name="latitude_dir"
+          value="North"
+          checked
+        />
+        <label for="north">North</label><br />
+        <input type="radio" id="south" name="latitude_dir" value="South" />
+        <label for="south">South</label><br /><br />
+
+        <label for="long">New Longitude:</label>
+        <input type="text" id="long" name="long" /><br /><br />
+
+        <input
+          type="radio"
+          id="east"
+          name="longitude_dir"
+          value="East"
+          checked
+        />
+        <label for="east">East</label><br />
+        <input type="radio" id="west" name="longitude_dir" value="West" />
+        <label for="west">West</label><br /><br />
+      </form>
+
+      <button type="button" id="move">Move</button>
+      <button type="button" id="forward">Forward</button><br /><br />
+      <button type="button" id="left">Turn Left</button>
+      <button type="button" id="right">Turn Right</button><br /><br />
+      <button type="button" id="backward">Backward</button><br /><br />
+
+      <div class="slider">
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value="50"
+          class="slider"
+          id="speed"
+        />
+        <p id="speed_text">Speed: 50%</p>
+      </div>
+      <br />
+
+      <div class="switch-toggle switch-candy-blue">
+        <input id="wave-glider" name="view" type="radio" checked />
+        <label for="wave-glider" onclick="">Wave-Glider</label>
+        <input id="heave-plate" name="view" type="radio" />
+        <label for="heave-plate" onclick="">Heave-Plate</label>
+        <a></a>
+      </div>
+      <br />
+
+      <button type="button" id="delete_marker">Delete Marker</button>
+      <br /><br />
+    </div>
+    <div style="float: right; position: absolute; top: 0px; right: 600px">
+      <div style="alt: some text; margin-top: 30px; float: right">
+        <img
+          id="compass_image"
+          src="{{ url_for('static',filename = 'compass-boat.png') }}"
+          width="180"
+          height="180"
+        />
+      </div>
+      <div
+        style="
+          height: 300px;
+          width: 300px;
+          margin-top: 20px;
+          left: 260px;
+          top: 200px;
+          float: right;
+        "
+        id="map"
+      >
+        <script
+          src="https://maps.googleapis.com/maps/api/js?key=AIzaSyATPf17SuLtopnHbm0XpqFWKYAGL1LxnWE&libraries=&v=weekly"
+          async
+        ></script>
+      </div>
+    </div>
+    <div style="float: right; position: absolute; top: 0px; right: 0px">
+      <div
+        style="
+          height: 200px;
+          width: 300px;
+          border: 1px solid #ccc;
+          font: 16px/26px Georgia, Garamond, Serif;
+          overflow: auto;
+          line-height: 10px;
+          float: right;
+          margin-right: 20%;
+        "
+        id="message-box"
+      ></div>
+      <div
+        style="alt: some text; margin-top: 250; float: right; margin-right: 20%"
+      >
+        <img
+          id="robot_image"
+          src="{{ url_for('video_feed') }}"
+          width="300"
+          height="250"
+        />
+      </div>
+    </div>
+  </body>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+  <script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+  <script src="{{url_for('script')}}"></script>
+</html>

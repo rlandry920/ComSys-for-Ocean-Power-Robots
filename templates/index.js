@@ -1,25 +1,20 @@
 var currLocation = { lat: 37.2284, lng: -80.4234 };
-var moveToLocation = { lat: 37.2284, lng: -80.4234 };
+var currDirection = 0;
 var markerShown = false;
+var moving = "stop";
+var speed = 50;
+var refreshTime = 1000
+
+var robot_flask_url = "http://192.168.1.9:5001/"
 
 var map, currLocationMarker, goToMarker;
-var images = ["reindeer1.PNG", "reindeer2.PNG", "reindeer3.PNG", "reindeer4.PNG", "reindeer5.PNG", "reindeer6.PNG", "reindeer7.PNG", "reindeer8.PNG", "reindeer9.PNG"];
-var i = 0;
-var renew = setInterval(function () {
-    if (images.length == i) {
-        i = 0;
-    }
-    else {
-        document.getElementById("robot_image").src = images[i];
-        i++;
-
-    }
-}, 1000);
 
 $(document).ready(function () {
     var pressedKey = -1;
     addMesssage("Log:", "b")
     initMap();
+    var refreshInterval = setInterval(refresh, refreshTime);
+
     $("#move").click(function () {
         var lat_dir = document.querySelector('input[name="latitude_dir"]:checked').value[0];
         var long_dir = document.querySelector('input[name="longitude_dir"]:checked').value[0];
@@ -42,24 +37,43 @@ $(document).ready(function () {
     });
 
     $("#left").mousedown(function () {
-        sendMoveCommand("turnLeft")
-        addMesssage("Turn left command sent", "s")
+        if (moving != "turnLeft") {
+            sendMoveCommand("turnLeft")
+            addMesssage("Turn left command sent", "s")
+        } else {
+            sendMoveCommand("stop")
+            addMesssage("Stop command sent", "s")
+        }
     });
 
     $("#right").mousedown(function () {
-        sendMoveCommand("turnRight")
-
-        addMesssage("Turn right command sent", "s")
+        if (moving != "turnRight") {
+            sendMoveCommand("turnRight")
+            addMesssage("Turn right command sent", "s")
+        } else {
+            sendMoveCommand("stop")
+            addMesssage("Stop command sent", "s")
+        }
     });
 
     $("#forward").mousedown(function () {
-        sendMoveCommand("moveForward")
-        addMesssage("Move forward command sent", "s")
+        if (moving != "moveForward") {
+            sendMoveCommand("moveForward")
+            addMesssage("Move forward command sent", "s")
+        } else {
+            sendMoveCommand("stop")
+            addMesssage("Stop command sent", "s")
+        }
     });
 
     $("#backward").mousedown(function () {
-        sendMoveCommand("moveBackward")
-        addMesssage("Move backward command sent", "s")
+        if (moving != "moveBackward") {
+            sendMoveCommand("moveBackward")
+            addMesssage("Move backward command sent", "s")
+        } else {
+            sendMoveCommand("stop")
+            addMesssage("Stop command sent", "s")
+        }
     });
 
     $(document).keydown(function (event) {
@@ -93,32 +107,13 @@ $(document).ready(function () {
     $(document).keyup(function (event) {
         var key = event.keyCode;
 
-        if (key == 39) {
-            sendMoveCommand("stopTurnRight")
-            addMesssage("Stop turning right command sent", "s")
+        if (key == 39 || key == 37 || key == 38 || key == 40) {
+            sendMoveCommand("stop")
+            addMesssage("Stop command sent", "s")
             pressedKey = -1
         }
-        else if (key == 37) {
-            sendMoveCommand("stopTurnLeft")
-            addMesssage("Stop turning left command sent", "s")
-            pressedKey = -1
-        }
-        else if (key == 38) {
-            sendMoveCommand("stopMoveForward")
-            addMesssage("Stop moving forward command sent", "s")
-            pressedKey = -1
-        }
-        else if (key == 40) {
-            sendMoveCommand("stopMoveBackward")
-            addMesssage("Stop moving backward command sent", "s")
-            pressedKey = -1
-        }
+
         event.preventDefault();
-    });
-
-
-    $("#refresh_map").mousedown(function () {
-        updateBoatMarker();
     });
 
     $("#delete_marker").hide();
@@ -127,10 +122,42 @@ $(document).ready(function () {
         deleteMarker();
     });
 
+    document.getElementById("speed").oninput = function () {
+        updateSpeed(this.value);
+    }
+
     google.maps.event.addListener(map, 'click', function (event) {
+        console.log("MAP")
         placeMarker(event.latLng);
     });
 });
+
+function refresh() {
+    if (moving != "stop") {
+        sendMoveCommand(moving);
+    }
+    sendGetDirectionCommand();
+    sendGetCoordinatesCommand();
+
+    $('#compass_image').css({
+        'transform': 'rotate(' + currDirection + 'deg)',
+        '-ms-transform': 'rotate(' + currDirection + 'deg)',
+        '-moz-transform': 'rotate(' + currDirection + 'deg)',
+        '-webkit-transform': 'rotate(' + currDirection + 'deg)',
+        '-o-transform': 'rotate(' + currDirection + 'deg)'
+    });
+    updateCurrentLocation();
+}
+
+function updateSpeed(newSpeed) {
+    $("#speed_text").text("Speed: " + newSpeed + "%")
+}
+function updateMoveButtonsText() {
+    $("#right").html(moving == "turnRight" ? "Stop" : "Turn Right");
+    $("#left").html(moving == "turnLeft" ? "Stop" : "Turn Left");
+    $("#forward").html(moving == "moveForward" ? "Stop" : "Forward");
+    $("#backward").html(moving == "moveBackward" ? "Stop" : "Backward");
+}
 
 function deleteMarker() {
     goToMarker.setVisible(false);
@@ -190,7 +217,7 @@ function sendGoToCommand(lat, long, lat_dir, long_dir) {
     ];
     $.ajax({
         type: 'POST',
-        url: "http://192.168.43.226:5000/goToCoordinates",
+        url: robot_flask_url + "goToCoordinates",
         data: JSON.stringify(data),
         contentType: "application/json",
         dataType: "text",
@@ -201,14 +228,48 @@ function sendGoToCommand(lat, long, lat_dir, long_dir) {
     });
 }
 
-function sendMoveCommand(command) {
+function sendGetDirectionCommand(command) {
     $.ajax({
         type: 'POST',
-        url: "http://10.0.0.243:5000/" + command,
+        url: robot_flask_url + "getDirection",
         contentType: "application/json",
         dataType: "text",
         success: function (response) {
+            currDirection = parseInt(response)
+        }
+    });
+}
+
+function sendGetCoordinatesCommand() {
+    $.ajax({
+        type: 'POST',
+        url: robot_flask_url + "getCoordinates",
+        contentType: "application/json",
+        dataType: "json",
+        success: function (response) {
+            currLocation.lat = Math.round(response["lat"] * 1000) / 1000;
+            currLocation.lng = Math.round(response["long"] * 1000) / 1000;
+        }
+    });
+}
+
+function sendMoveCommand(command) {
+    var data = [
+        {
+            "command": command,
+            "speed": document.getElementById("speed").value
+        }
+    ];
+    $.ajax({
+        type: 'POST',
+        url: robot_flask_url + "move",
+        data: JSON.stringify(data),
+        contentType: "application/json",
+        dataType: "text",
+        success: function (response) {
+            moving = command;
             addMesssage(response, "r")
+            updateMoveButtonsText();
         }
     });
 }
@@ -236,36 +297,39 @@ function initMap() {
         center: currLocation,
         streetViewControl: false,
     });
-    const image = "boat_marker.png"
-    // The marker, positioned at Uluru
+    const image = "{{ url_for('static',filename = 'boat_marker.png') }}"
+    console.log(image)
+    // The current location marker
     currLocationMarker = new google.maps.Marker({
         position: currLocation,
         map: map,
         icon: image
     });
 
-    // The marker, positioned at Uluru
+    // The destination marker
     goToMarker = new google.maps.Marker({
-        position: moveToLocation,
+        position: currLocation,
         map: map,
         visible: false,
     });
 
-    updateCurrentLocation()
+    updateCurrentLocation();
 }
 
 function updateBoatMarker() {
     currLocationMarker.setPosition(currLocation)
-    deleteMarker();
     var bounds = new google.maps.LatLngBounds();
-    bounds.extend(goToMarker.position);
+    if (goToMarker.visible) {
+        bounds.extend(goToMarker.position);
+    } else {
+        bounds.extend(currLocationMarker.position);
+    }
     bounds.extend(currLocationMarker.position);
     map.fitBounds(bounds);
-    if (map.getZoom() > 15) {
-        map.setZoom(15);
-    }
-
-    updateCurrentLocation()
+    if (!goToMarker.visible)
+        if (map.getZoom() > 13) {
+            map.setZoom(13);
+        }
 }
 
 function updateCurrentLocation() {
@@ -279,4 +343,9 @@ function updateCurrentLocation() {
     } else {
         $("#curr_long").text("Current longitude: " + currLocation.lng.toString() + " E")
     }
+    $("#curr_dir").text("Current bearing: " + currDirection.toString() + " degrees")
+
+    updateBoatMarker();
+
+
 }

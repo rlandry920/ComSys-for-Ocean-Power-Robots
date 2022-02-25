@@ -4,7 +4,7 @@ import struct
 
 value = 5.13482358
 value2 = 6512.65165
-b= struct.pack('f', value)
+b = struct.pack('f', value)
 
 # Triton Datagram
 # Bytes: 0        1        2        3
@@ -22,7 +22,7 @@ NUM_CKSM_BYTES = 2
 NUM_LEN_BYTES = 2
 
 MIN_PACKET_SIZE = NUM_ID_BYTES + NUM_TYPE_BYTES + \
-                  NUM_CKSM_BYTES + NUM_LEN_BYTES
+    NUM_CKSM_BYTES + NUM_LEN_BYTES
 MAX_DATA_SIZE = pow(2, (8 * NUM_LEN_BYTES))
 
 
@@ -43,11 +43,11 @@ class MsgType(Enum):
 
     GPS_DATA = b'\x08'  # GPS + Magnetometer Data (from robot to land base)
     IMAGE = b'\x09'
-    MTR_CMD = '\x0A'  # Motor Command
+    MTR_CMD = b'\x0A'  # Motor Command
     GPS_CMD = b'\x0B'
 
-    IP = b'\x0C'  # Data is an IP datagram to be forwarded (NOT IMPLEMENTED BY RELEASE)
-
+    # Data is an IP datagram to be forwarded (NOT IMPLEMENTED BY RELEASE)
+    IP = b'\x0C'
 
 
 class Packet:
@@ -72,11 +72,13 @@ class Packet:
             index = 0
             self.type = MsgType(data[index: index + NUM_TYPE_BYTES])
             index += NUM_TYPE_BYTES
-            self.id = int.from_bytes(data[index: index + NUM_ID_BYTES], byteorder='big')
+            self.id = int.from_bytes(
+                data[index: index + NUM_ID_BYTES], byteorder='big')
             index += NUM_ID_BYTES
             self.checksum = data[index: index + NUM_CKSM_BYTES]
             index += NUM_CKSM_BYTES
-            self.length = int.from_bytes(data[index: index + NUM_LEN_BYTES], byteorder='big')
+            self.length = int.from_bytes(
+                data[index: index + NUM_LEN_BYTES], byteorder='big')
             index += NUM_CKSM_BYTES
 
             if len(data)-index >= self.length:
@@ -91,10 +93,10 @@ class Packet:
 
     def to_binary(self):
         return self.type.value + \
-               self.id.to_bytes(length=NUM_ID_BYTES, byteorder='big') + \
-               self.checksum + \
-               self.length.to_bytes(length=NUM_LEN_BYTES, byteorder='big') + \
-               self.data
+            self.id.to_bytes(length=NUM_ID_BYTES, byteorder='big') + \
+            self.checksum + \
+            self.length.to_bytes(length=NUM_LEN_BYTES, byteorder='big') + \
+            self.data
 
     def calc_checksum(self):
         temp = self.checksum
@@ -116,7 +118,8 @@ def calc_checksum(data: bytes):
         checksum = row ^ checksum
 
     checksum = int.from_bytes(checksum.tobytes(), byteorder='big')
-    checksum = (pow(2, (8*NUM_CKSM_BYTES)) - checksum)  # Calculate the two's compliment
+    # Calculate the two's compliment
+    checksum = (pow(2, (8*NUM_CKSM_BYTES)) - checksum)
 
     return checksum.to_bytes(NUM_CKSM_BYTES, byteorder='big')
 
