@@ -1,5 +1,5 @@
 #!flask/bin/python
-from flask import Flask, request, Response
+from flask import Flask, request, Response, render_template
 from logging import Logger
 import numpy as np
 from CommSys.CommHandler import CommHandler
@@ -15,7 +15,7 @@ import cv2
 
 from util_functions import *
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/static', static_folder='static')
 
 FEATHER_M0 = None
 
@@ -37,9 +37,27 @@ logger = logging.getLogger(__name__)
 display_resolution = (240, 120)
 
 
-@app.route('/', methods=['GET', 'POST', 'DELETE'])
-def output():
-    return
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+
+@app.route('/script.js')
+def script():
+    return render_template('index.js')
+
+
+def gen(camera):
+    while True:
+        frame = camera.get_frame()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(gen(Camera()),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 @app.route('/goToCoordinates', methods=['POST', 'DELETE'])
@@ -146,4 +164,4 @@ if __name__ == '__main__':
     # get_feather_ip()
     # Set host to 0.0.0.0 to run flask externally
     # main()
-    app.run(host="0.0.0.0", port=5001)
+    app.run(host="0.0.0.0", port=5000)

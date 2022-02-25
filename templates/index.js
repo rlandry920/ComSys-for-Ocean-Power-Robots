@@ -5,7 +5,7 @@ var moving = "stop";
 var speed = 50;
 var refreshTime = 1000
 
-var robot_flask_url = "http://192.168.1.9:5001/"
+var robot_flask_url = "http://localhost:5001/"
 
 var map, currLocationMarker, goToMarker;
 
@@ -209,10 +209,16 @@ function placeMarker(location) {
 }
 
 function sendGoToCommand(lat, long, lat_dir, long_dir) {
+    if (lat_dir == 'S') {
+        lat = '-' + lat
+    }
+    if (long_dir == 'W') {
+        long = '-' + long
+    }
     var data = [
         {
-            "lat_py": lat + lat_dir,
-            "long_py": long + long_dir
+            "lat_py": lat,
+            "long_py": long
         }
     ];
     $.ajax({
