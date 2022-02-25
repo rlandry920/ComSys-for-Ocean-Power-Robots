@@ -2,16 +2,12 @@
 from flask import Flask, request, Response, render_template
 from logging import Logger
 import numpy as np
-from CommSys.CommHandler import CommHandler
+from CommSys.CommHandler import CommHandler, CommMode
 from SensorLib.FPS import FPS
 from camera import Camera
-import base64
-import io
-import random
-import json
 import logging
-import sys
 import cv2
+from threading import Thread
 
 from util_functions import *
 
@@ -66,7 +62,7 @@ def goToCoordinates():
     latitude, longitude = getStringCoordinates(data)
     error = checkCoordinates(latitude, longitude)
 
-    if(error != None):
+    if error != None:
         return error
     else:
         return sendMoveToCommand(float(latitude), float(longitude), comm_handler)
@@ -88,7 +84,7 @@ def move():
         currCoordinates['lat'] += 0.005
         currCoordinates['long'] += 0.005
 
-    elif(command == "moveBackward"):
+    elif command == "moveBackward":
         currCoordinates['lat'] -= 0.005
         currCoordinates['long'] -= 0.005
 
@@ -124,9 +120,8 @@ def get_robot_heartbeat():
 
 
 def main():
-    Logger.info("Landbase starting...")
-    comm_handler.start()
-    print("Connection with robot established!")
+    logger.info("Landbase starting...")
+    comm_handler.start(mode=CommMode.DEBUG)
     fps.start()
     try:
         while True:
@@ -136,7 +131,7 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        logging.info("Landbase stopping...")
+        logger.info("Landbase stopping...")
         comm_handler.stop()
         fps.stop()
 
@@ -161,7 +156,5 @@ def digest_packet(packet: Packet):
 
 
 if __name__ == '__main__':
-    # get_feather_ip()
-    # Set host to 0.0.0.0 to run flask externally
-    # main()
+    Thread(target=main).start()
     app.run(host="0.0.0.0", port=5000)

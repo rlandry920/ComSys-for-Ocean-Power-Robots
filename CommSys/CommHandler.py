@@ -60,7 +60,9 @@ class CommHandler(Process):
 
     # Add packet to outgoing queue
     def send_packet(self, packet: Packet):
+        logger.debug(f'Putting packet of {packet.type} into out queue.')
         self.out_queue.put(packet, True, None)  # Waits here until able to place item in queue
+        logger.debug(f'Out queue: {self.out_queue}')
 
     # Pops and returns the oldest packet in the incoming queue, returns none if no available item in queue
     def recv_packet(self):

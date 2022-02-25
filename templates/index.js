@@ -223,7 +223,7 @@ function sendGoToCommand(lat, long, lat_dir, long_dir) {
     ];
     $.ajax({
         type: 'POST',
-        url: robot_flask_url + "goToCoordinates",
+        url: "{{ url_for("goToCoordinates") }}",
         data: JSON.stringify(data),
         contentType: "application/json",
         dataType: "text",
@@ -237,7 +237,7 @@ function sendGoToCommand(lat, long, lat_dir, long_dir) {
 function sendGetDirectionCommand(command) {
     $.ajax({
         type: 'POST',
-        url: robot_flask_url + "getDirection",
+        url: "{{ url_for("getDirection") }}",
         contentType: "application/json",
         dataType: "text",
         success: function (response) {
@@ -249,7 +249,7 @@ function sendGetDirectionCommand(command) {
 function sendGetCoordinatesCommand() {
     $.ajax({
         type: 'POST',
-        url: robot_flask_url + "getCoordinates",
+        url: "{{ url_for("getCoordinates") }}",
         contentType: "application/json",
         dataType: "json",
         success: function (response) {
@@ -268,7 +268,7 @@ function sendMoveCommand(command) {
     ];
     $.ajax({
         type: 'POST',
-        url: robot_flask_url + "move",
+        url: "{{ url_for("move") }}",
         data: JSON.stringify(data),
         contentType: "application/json",
         dataType: "text",
