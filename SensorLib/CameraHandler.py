@@ -4,6 +4,7 @@ import numpy as np
 from CommSys.CommHandler import CommHandler
 from CommSys.Packet import Packet, MsgType
 import cv2
+import time
 from SensorLib.USBCameraStream import USBCameraStream
 
 desired_resolution = (60, 30)
@@ -32,6 +33,7 @@ class CameraHandler:
                 word = np.array(cv2.imencode('.jpg', frame)[1]).tostring()
                 packet = Packet(ptype=MsgType.IMAGE, pid=0, data=word)
                 self.comm_handler.send_packet(packet)
+                time.sleep(0.5)
 
     def stop(self):
         logger.info("CameraHandler stopping...")

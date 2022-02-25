@@ -84,4 +84,4 @@ def digest_packet(packet: Packet):
 
 
 if __name__ == "__main__":
-    tx_window_test()
+    main()

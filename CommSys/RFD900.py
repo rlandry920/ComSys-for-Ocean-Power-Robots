@@ -68,7 +68,8 @@ class RFD900:
                     with self.read_queue_lock:
                         self.read_queue.append(packet)
                 else:
-                    logger.debug(f"Radio dropped packet (ID: {packet.id}) due to invalid checksum")
+                    logger.debug(f"Radio dropped packet (ID: {packet.id}) due to invalid checksum. "
+                                 f"Expected: {packet.checksum}, Actual: {packet.calc_checksum()}")
                 self.read_buf = self.read_buf[(packet.length + MIN_PACKET_SIZE):]
             except PacketError:
                 pass

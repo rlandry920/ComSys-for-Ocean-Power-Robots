@@ -14,7 +14,7 @@ from enum import Enum
 logger = logging.getLogger(__name__)
 
 HANDSHAKE_TIMEOUT = 60
-TX_TIMEOUT = 3
+TX_TIMEOUT = 5
 RX_CACK_DELAY = 0.100
 WINDOW_SIZE = 8
 MAX_ID = pow(2, (8 * NUM_ID_BYTES))
@@ -35,6 +35,7 @@ class CommHandler(Process):
         self.tx_base = 0
         self.tx_next_seq_num = 0
         self.tx_window = [None] * WINDOW_SIZE  # Queue of sent, un-ack'd packets # Todo TX window has to become a Queue
+        self.tx_win_lock = Lock()
 
         self.rx_base = 0
         self.rx_window = [None] * WINDOW_SIZE  # Queue of received, buffered packets to send to application
@@ -72,7 +73,7 @@ class CommHandler(Process):
         return not self.in_queue.empty()
 
     def start(self, mode=CommMode.HANDSHAKE):
-        self.change_mode(mode)
+        self.comm_mode = mode
         Process.start(self)
         if mode == CommMode.HANDSHAKE:
             # If in handshake mode, try to establish connection within timeout period
@@ -144,22 +145,25 @@ class CommHandler(Process):
     def __tx_packet(self, packet: Packet):
         packet.id = self.tx_next_seq_num  # Set packet ID
         packet.checksum = packet.calc_checksum()  # Recalculate packet's checksum w/ new ID
+        with self.tx_win_lock:
+            window_index = (packet.id - self.tx_base) % MAX_ID
+            # Check to ensure that there is room in the window
+            if window_index < 0 or window_index >= WINDOW_SIZE:
+                raise FlowControlError(f'Cannot add packet to full transmission window! '
+                                       f'Attempted addition: {packet.type} (ID: {packet.id})')
 
-        window_index = (packet.id - self.tx_base) % MAX_ID
-        # Check to ensure that there is room in the window
-        if window_index < 0 or window_index >= WINDOW_SIZE:
-            raise FlowControlError(f'Cannot add packet to full transmission window!')
+            if self.tx_window[window_index] is not None:
+                raise FlowControlError(f'Attempting to overwrite an item already in transmission window! '
+                                       f'Attempted addition to index {window_index}: {packet.type} (ID: {packet.id})')
 
-        if self.tx_window[window_index] is not None:
-            raise FlowControlError(f'Attempting to overwrite an item already in transmission window!')
+            logger.debug(f"Transmitting packet (ID: {packet.id}, MsgType: {packet.type})")
 
-        logger.debug(f"Transmitting packet (ID: {packet.id}, MsgType: {packet.type})")
-
-        self.tx_window[window_index] = {"packet": packet,
-                                        "timer": Timer(TX_TIMEOUT, self.__resend_packet, args=[packet.id])}
-        self.tx_window[window_index]["timer"].start()
+            self.tx_window[window_index] = {"packet": packet,
+                                            "timer": Timer(TX_TIMEOUT, self.__resend_packet, args=[packet.id])}
+            self.tx_window[window_index]["timer"].start()
         self.__write(packet)
         self.tx_next_seq_num = (self.tx_next_seq_num + 1) % MAX_ID
+        logger.debug(self.__tx_window_to_str())
 
     # Add packet to rx_window, handle ack'ing behavior
     def __rx_packet(self, packet: Packet):
@@ -227,20 +231,19 @@ class CommHandler(Process):
     def __handle_ack(self, packet: Packet):
         window_index = (packet.id - self.tx_base) % MAX_ID
 
-        # Acknowledgement of base packet - same behavior regardless of ack type
-        if packet.id == self.tx_base:
-            self.__acknowledge_tx_index(window_index)
-            # Keep shifting tx_window until its base is an unacknowledged packet / None
-            while self.tx_window[0] == "ACK":
-                self.__shift_tx_window(1)
-
-        # Out-of-Order Selective acknowledgment
-        elif packet.type == MsgType.SACK or packet.type == MsgType.DACK:
+        # Selective acknowledgment
+        if packet.type == MsgType.SACK or packet.type == MsgType.DACK:
             self.__acknowledge_tx_index(window_index)
 
         # Cumulative acknowledgement
         elif packet.type == MsgType.CACK:
             self.__shift_tx_window(window_index + 1)
+
+        # Keep shifting tx_window until its base is an unacknowledged packet / None
+        while self.tx_window[0] == "ACK":
+            self.__shift_tx_window(1)
+
+        logger.debug(self.__tx_window_to_str())
 
     def __send_ack(self, pid, ack_type=MsgType.SACK):
         logger.debug(f"Acknowledging packet (ID: {pid}) with {ack_type}.")
@@ -302,6 +305,9 @@ class CommHandler(Process):
                 print('...')
             else:
                 print('')
+            # RX a dummy acknowledgement
+            ack_packet = Packet(MsgType.SACK, pid=packet.id, data=b'')
+            self.__rx_packet(ack_packet)
 
     def __acknowledge_tx_index(self, index):
         # Check to ensure that a valid ack_id was recv'd
@@ -316,7 +322,6 @@ class CommHandler(Process):
             raise FlowControlError(f'Acknowledgment for unsent packet ({self.tx_base + index}) received.')
 
         logger.debug(f"Acknowledgement received for packet (ID: {self.tx_base + index}).")
-        print(self.tx_window)
         # Turn off resend timer
         self.tx_window[index]["timer"].cancel()
         # Replace with ACK
@@ -330,8 +335,9 @@ class CommHandler(Process):
         for pair in shift_range:
             pair["timer"].cancel()
 
-        self.tx_base = (self.tx_base + shift_amount) % MAX_ID
-        self.tx_window = self.tx_window[shift_amount:] + [None] * shift_amount
+        with self.tx_win_lock:
+            self.tx_base = (self.tx_base + shift_amount) % MAX_ID
+            self.tx_window = self.tx_window[shift_amount:] + [None] * shift_amount
 
     # Delivers in-order packets to application and increments rx_base accordingly
     def __deliver_rx_window(self):
@@ -348,6 +354,16 @@ class CommHandler(Process):
         to_deliver = list(filter(lambda x: type(x) == Packet, to_deliver))  # Filter needed in case of "DEL" placeholder
         for item in to_deliver:
             self.in_queue.put(item, True, None)
+
+    def __tx_window_to_str(self):
+        list_str = ''
+        for item in self.tx_window:
+            if item is not None and type(item) != str:
+                list_str += f"Packet (ID: {str(item['packet'].id)})"
+            else:
+                list_str += str(item)
+            list_str += ', '
+        return list_str
 
 
 class CommSysError(Exception):
