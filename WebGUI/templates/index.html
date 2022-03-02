@@ -73,7 +73,7 @@
       <button type="button" id="delete_marker">Delete Marker</button>
       <br /><br />
     </div>
-    <div style="float: right; position: absolute; top: 0px; right: 600px">
+    <div style="float: left; position: absolute; top: 0px; left: 180px">
       <div style="alt: some text; margin-top: 30px; float: right">
         <img
           id="compass_image"
@@ -115,17 +115,45 @@
       ></div>
       <div
         style="alt: some text; margin-top: 250; float: right; margin-right: 20%"
-      >
-        <img
-          id="robot_image"
-          src="{{ url_for('video_feed') }}"
-          width="300"
-          height="250"
-        />
-      </div>
+        id="viewer"
+      ></div>
     </div>
   </body>
+
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
   <script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
   <script src="{{url_for('script')}}"></script>
+
+  <!-- H264 PLAYER BELOW FROM https://www.codeinsideout.com/blog/pi/stream-picamera-h264/ -->
+  <!-- <script type="module" src="{{url_for('static', filename='script/viewer.js')}}"></script> -->
+  <script type="text/javascript" src="{{url_for('static', filename='./script/Decoder.js')}}"></script>
+  <script type="text/javascript" src="{{url_for('static', filename='./script/YUVCanvas.js')}}"></script>
+  <script type="text/javascript" src="{{url_for('static', filename='./script/Player.js')}}"></script>
+  <script>
+    // player
+    window.player = new Player({
+      useWorker: true,
+      webgl: 'auto',
+      size: { width: 424, height: 240 }
+    })
+    var playerElement = document.getElementById('viewer')
+    playerElement.appendChild(window.player.canvas)
+    // Websocket
+    var wsUri =
+      window.location.protocol.replace(/http/, 'ws')
+      + '//' + window.location.hostname + ':9000'
+    var ws = new WebSocket(wsUri)
+    ws.binaryType = 'arraybuffer'
+    ws.onopen = function (e) {
+      console.log('Client connected')
+      ws.onmessage = function (msg) {
+        // decode stream
+        console.log('Received message')
+        window.player.decode(new Uint8Array(msg.data));
+      }
+    }
+    ws.onclose = function (e) {
+      console.log('Client disconnected')
+    }
+  </script>
 </html>

@@ -7,7 +7,7 @@ import cv2
 
 # Used in CameraHandler.py
 
-class USBCameraStream:
+class USBCamera:
     def __init__(self):
         self.stream = None
         self.frame = None

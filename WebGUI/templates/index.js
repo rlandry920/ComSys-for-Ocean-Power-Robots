@@ -3,7 +3,7 @@ var currDirection = 0;
 var markerShown = false;
 var moving = "stop";
 var speed = 50;
-var refreshTime = 1000
+var refreshTime = 60000 // Every minute
 
 var robot_flask_url = "http://localhost:5000/"
 

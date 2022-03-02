@@ -4,7 +4,7 @@ import queue
 import serial
 import time
 from threading import Thread, Lock
-from CommSys.Packet import Packet, PacketError, MIN_PACKET_SIZE
+from CommSys.Packet import Packet, PacketError, MIN_PACKET_SIZE, SYNC_WORD, NUM_SYNC_BYTES
 import logging
 
 SER_DEVICE = "/dev/ttyAMA0"
@@ -60,23 +60,30 @@ class RFD900:
                 # Reset timer if any bytes were added
                 self.flush_timer = time.time() + FLUSH_TIME
 
-            # Try to make a packet from read_buf
-            try:
-                packet = Packet(data=self.read_buf)
-                if packet.checksum == packet.calc_checksum():
-                    # Valid packet was created
-                    with self.read_queue_lock:
-                        self.read_queue.append(packet)
-                else:
-                    logger.debug(f"Radio dropped packet (ID: {packet.id}) due to invalid checksum. "
-                                 f"Expected: {packet.checksum}, Actual: {packet.calc_checksum()}")
-                self.read_buf = self.read_buf[(packet.length + MIN_PACKET_SIZE):]
-            except PacketError:
-                pass
-            except ValueError:
-                # Invalid MsgType was given, flush read_buf
-                self.read_buf = b''
-                logger.debug(f"Radio dropped packet due to invalid MsgType")
+            sync_ind = self.read_buf.find(SYNC_WORD)
+            if sync_ind >= 0:
+                # Sync word exists in read buffer, head to it
+                if sync_ind > 0:
+                    logger.debug("Radio jumping to found sync word")
+                self.read_buf = self.read_buf[sync_ind:]
+
+                # Try to make a packet from read_buf
+                try:
+                    packet = Packet(data=self.read_buf)
+                    if packet.checksum == packet.calc_checksum():
+                        # Valid packet was created
+                        with self.read_queue_lock:
+                            self.read_queue.append(packet)
+                    else:
+                        logger.debug(f"Radio dropped packet (ID: {packet.id}) due to invalid checksum. "
+                                     f"Expected: {packet.checksum}, Actual: {packet.calc_checksum()}")
+                    self.read_buf = self.read_buf[(packet.length + MIN_PACKET_SIZE):]
+                except PacketError:
+                    pass
+                except ValueError:
+                    # Invalid MsgType was given, flush read_buf
+                    self.read_buf = b''
+                    logger.debug(f"Radio dropped packet due to invalid MsgType")
 
             if time.time() > self.flush_timer and len(self.read_buf) > 0:
                 self.read_buf = b''

@@ -9,6 +9,7 @@ b = struct.pack('f', value)
 # Triton Datagram
 # Bytes: 0        1        2        3
 #       ┌───────────────────────────────────┐
+#       | ---------- SYNC_WORD ------------ |
 #       | - Type - | -------- ID ---------- |
 #       | --- Checksum --- | --- Length ----|
 #       | -------------- Data ------------- |
@@ -16,14 +17,17 @@ b = struct.pack('f', value)
 
 #       └───────────────────────────────────┘
 
+NUM_SYNC_BYTES = 4
 NUM_TYPE_BYTES = 1
 NUM_ID_BYTES = 3
 NUM_CKSM_BYTES = 2
 NUM_LEN_BYTES = 2
 
-MIN_PACKET_SIZE = NUM_ID_BYTES + NUM_TYPE_BYTES + \
-    NUM_CKSM_BYTES + NUM_LEN_BYTES
+MIN_PACKET_SIZE = NUM_SYNC_BYTES + NUM_TYPE_BYTES + NUM_ID_BYTES + \
+                  NUM_CKSM_BYTES + NUM_LEN_BYTES
 MAX_DATA_SIZE = pow(2, (8 * NUM_LEN_BYTES))
+
+SYNC_WORD = b'\xAA' * NUM_SYNC_BYTES
 
 
 class PacketError(Exception):
@@ -51,9 +55,9 @@ class MsgType(Enum):
 
 
 class Packet:
-    def __init__(self, ptype: MsgType = MsgType.NULL, pid=None, data: bytes = b'', calc_cksm=False):
+    def __init__(self, ptype: MsgType = MsgType.NULL, pid=0, data: bytes = b'', calc_cksm=False):
         # Parameterized Constructor
-        if pid is not None:
+        if ptype != MsgType.NULL:
             # Check data length to ensure it is < 2^16
             if len(data) > MAX_DATA_SIZE:
                 raise PacketError(f'Failed to create packet, '
@@ -69,7 +73,10 @@ class Packet:
 
         # From-Binary Constructor
         elif len(data) >= MIN_PACKET_SIZE:
-            index = 0
+            if data[0:NUM_SYNC_BYTES] != SYNC_WORD:
+                raise PacketError(f'Failed to create packet,'
+                                  f'invalid sync word: {data[0:4]}')
+            index = NUM_SYNC_BYTES
             self.type = MsgType(data[index: index + NUM_TYPE_BYTES])
             index += NUM_TYPE_BYTES
             self.id = int.from_bytes(
@@ -81,22 +88,23 @@ class Packet:
                 data[index: index + NUM_LEN_BYTES], byteorder='big')
             index += NUM_CKSM_BYTES
 
-            if len(data)-index >= self.length:
+            if len(data) - index >= self.length:
                 self.data = data[index: index + self.length]
             else:
                 raise PacketError(f'Failed to create packet,'
-                                  f'payload length ({len(data)-index}) did not meet expected length ({self.length}).')
+                                  f'payload length ({len(data) - index}) did not meet expected length ({self.length}).')
 
         else:
             raise PacketError(f'Failed to create packet, '
                               f'invalid parameters.')
 
     def to_binary(self):
-        return self.type.value + \
-            self.id.to_bytes(length=NUM_ID_BYTES, byteorder='big') + \
-            self.checksum + \
-            self.length.to_bytes(length=NUM_LEN_BYTES, byteorder='big') + \
-            self.data
+        return SYNC_WORD + \
+               self.type.value + \
+               self.id.to_bytes(length=NUM_ID_BYTES, byteorder='big') + \
+               self.checksum + \
+               self.length.to_bytes(length=NUM_LEN_BYTES, byteorder='big') + \
+               self.data
 
     def calc_checksum(self):
         temp = self.checksum
@@ -107,22 +115,51 @@ class Packet:
 
 
 # Global checksum function for any bytes object
-def calc_checksum(data: bytes):
-    checksum_matrix = np.append(list(data), [0]*(len(data) % NUM_CKSM_BYTES))
-    checksum_matrix = np.reshape(checksum_matrix, [-1, 2])
-    checksum_matrix = checksum_matrix.astype(np.uint8)
 
-    checksum = np.array([0]*NUM_CKSM_BYTES, dtype=np.uint8)
+def carry_around_add(a, b):
+    c = a + b
+    return (c & 0xffff) + (c >> 16)
 
-    for row in checksum_matrix:
-        checksum = row ^ checksum
 
-    checksum = int.from_bytes(checksum.tobytes(), byteorder='big')
-    # Calculate the two's compliment
-    checksum = (pow(2, (8*NUM_CKSM_BYTES)) - checksum)
+def calc_checksum(msg):
+    msg_padded = msg + (b'\x00' * (len(msg) % NUM_CKSM_BYTES))
+    s = 0
+    for i in range(0, len(msg), 2):
+        w = msg_padded[i] + (msg_padded[i + 1] << 8)
+        s = carry_around_add(s, w)
+    return int.to_bytes(~s & 0xffff, NUM_CKSM_BYTES, 'big')
 
-    return checksum.to_bytes(NUM_CKSM_BYTES, byteorder='big')
+
+# def calc_checksum(data: bytes):
+#     checksum_matrix = np.append(list(data), [0]*(len(data) % NUM_CKSM_BYTES))
+#     checksum_matrix = np.reshape(checksum_matrix, [-1, 2])
+#     checksum_matrix = checksum_matrix.astype(np.uint8)
+#
+#     checksum = np.array([0]*NUM_CKSM_BYTES, dtype=np.uint8)
+#
+#     for row in checksum_matrix:
+#         checksum = row ^ checksum
+#
+#     checksum = int.from_bytes(checksum.tobytes(), byteorder='big')
+#     # Calculate the two's compliment
+#     checksum = (pow(2, (8*NUM_CKSM_BYTES)) - checksum)
+#
+#     return checksum.to_bytes(NUM_CKSM_BYTES, byteorder='big')
 
 
 if __name__ == "__main__":
-    Packet(data=b'\x01\x00\x00\x00\xff\x00\x00\x00')
+    p0 = Packet(ptype=MsgType.TEXT, data=b'Hello world!')
+    print(p0.to_binary())
+
+    p1 = Packet(data=b'\xAA\xAA\xAA\xAA\x01\x00\x00\x00\xff\x00\x00\x00')
+    print(p1.type, p1.id, p1.length, p1.data)
+
+    try:
+        p2 = Packet(data=b'\x01\x00\x00\x00\xff\x00\x00\x00')
+    except PacketError as e:
+        print("Success:", str(e))
+
+    try:
+        p3 = Packet(data=b'\x01\x00\x00\x00\x01\x00\x00\x00\xff\x00\x00\x00')
+    except PacketError as e:
+        print("Success:", str(e))

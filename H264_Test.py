@@ -1,27 +1,41 @@
-import subprocess as sp
+from WebGUI.WebGUI_Flask import app
+from wsgiref.simple_server import *
+from ws4py.server.wsgirefserver import WSGIServer, WebSocketWSGIRequestHandler
+from ws4py.server.wsgiutils import WebSocketWSGIApplication
+from ws4py.websocket import WebSocket
+from SensorLib.FrameBuffer import FrameBuffer
 
-FFMPEG_BIN = "/usr/bin/ffmpeg"
-FFPLAY_BIN = "/usr/bin/ffplay"
+import picamera
+from threading import Thread, Condition
 
-h264_encode = [FFMPEG_BIN,
-               '-i', '/dev/video0',
-               '-r', '5',  # FPS
-               '-pix_fmt', 'bgr24',  # opencv requires bgr24 pixel format.
-               '-vcodec', 'h264',
-               '-an', '-sn',  # disable audio processing
-               '-f', 'image2pipe', '-']
-encode_pipe = sp.Popen(h264_encode, stdout=sp.PIPE, bufsize=10)
+camera = picamera.PiCamera(resolution='640x480', framerate=24)
 
-h264_decode = [FFPLAY_BIN,
-               '-vcodec', 'h264',
-               '-i', '-']
 
-decode_pipe = sp.Popen(h264_decode, stdin=sp.PIPE)
+def main():
+    print(camera)
 
-try:
-    while True:
-        pass
-except KeyboardInterrupt:
-    pass
+    # Live video WebSocket - https://www.codeinsideout.com/blog/pi/stream-picamera-h264/
+    websocketd = make_server('', 9000, server_class=WSGIServer,
+                             handler_class=WebSocketWSGIRequestHandler,
+                             app=WebSocketWSGIApplication(handler_cls=WebSocket))
+    websocketd.initialize_websockets_manager()
+    websocketd_thread = Thread(target=websocketd.serve_forever)
 
-encode_pipe.stdout.flush()
+    broadcasting = True
+    frame_buffer = FrameBuffer()
+    camera.start_recording(frame_buffer, format='h264', profile="baseline", bitrate=115200)
+
+    try:
+        websocketd_thread.start()
+        while broadcasting:
+            with frame_buffer.condition:
+                frame_buffer.condition.wait()
+                websocketd.manager.broadcast(frame_buffer.frame, binary=True)
+    finally:
+        camera.close()
+        websocketd_thread.join()
+
+
+if __name__ == "__main__":
+    Thread(target=main).start()
+    app.run(host="0.0.0.0", port=5000)

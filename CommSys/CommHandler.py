@@ -14,10 +14,12 @@ from enum import Enum
 logger = logging.getLogger(__name__)
 
 HANDSHAKE_TIMEOUT = 60
-TX_TIMEOUT = 5
+TX_TIMEOUT = 2.5
 RX_CACK_DELAY = 0.100
 WINDOW_SIZE = 8
 MAX_ID = pow(2, (8 * NUM_ID_BYTES))
+
+RELIABLE_IMG = False
 ORD_DELIVERY = True  # Determines whether the Selective Repeat Protocol must deliver packets to app. in order of ID
 
 
@@ -60,9 +62,7 @@ class CommHandler(Process):
 
     # Add packet to outgoing queue
     def send_packet(self, packet: Packet):
-        logger.debug(f'Putting packet of {packet.type} into out queue.')
         self.out_queue.put(packet, True, None)  # Waits here until able to place item in queue
-        logger.debug(f'Out queue: {self.out_queue}')
 
     # Pops and returns the oldest packet in the incoming queue, returns none if no available item in queue
     def recv_packet(self):
@@ -145,27 +145,34 @@ class CommHandler(Process):
 
     # Add packet to tx_window and increment sequence number
     def __tx_packet(self, packet: Packet):
-        packet.id = self.tx_next_seq_num  # Set packet ID
         packet.checksum = packet.calc_checksum()  # Recalculate packet's checksum w/ new ID
-        with self.tx_win_lock:
-            window_index = (packet.id - self.tx_base) % MAX_ID
-            # Check to ensure that there is room in the window
-            if window_index < 0 or window_index >= WINDOW_SIZE:
-                raise FlowControlError(f'Cannot add packet to full transmission window! '
-                                       f'Attempted addition: {packet.type} (ID: {packet.id})')
 
-            if self.tx_window[window_index] is not None:
-                raise FlowControlError(f'Attempting to overwrite an item already in transmission window! '
-                                       f'Attempted addition to index {window_index}: {packet.type} (ID: {packet.id})')
+        if not RELIABLE_IMG and packet.type == MsgType.IMAGE:
+            # Send image packet unreliably
+            logger.debug(f"Transmitting unreliable image (Length: {packet.length} Bytes)")
+            self.__write(packet)
 
-            logger.debug(f"Transmitting packet (ID: {packet.id}, MsgType: {packet.type})")
+        else:
+            packet.id = self.tx_next_seq_num  # Set packet ID
+            with self.tx_win_lock:
+                window_index = (packet.id - self.tx_base) % MAX_ID
+                # Check to ensure that there is room in the window
+                if window_index < 0 or window_index >= WINDOW_SIZE:
+                    raise FlowControlError(f'Cannot add packet to full transmission window! '
+                                           f'Attempted addition: {packet.type} (ID: {packet.id})')
 
-            self.tx_window[window_index] = {"packet": packet,
-                                            "timer": Timer(TX_TIMEOUT, self.__resend_packet, args=[packet.id])}
-            self.tx_window[window_index]["timer"].start()
-        self.__write(packet)
-        self.tx_next_seq_num = (self.tx_next_seq_num + 1) % MAX_ID
-        logger.debug(self.__tx_window_to_str())
+                if self.tx_window[window_index] is not None:
+                    raise FlowControlError(f'Attempting to overwrite an item already in transmission window! '
+                                           f'Attempted addition to index {window_index}: {packet.type} (ID: {packet.id})')
+
+                logger.debug(f"Transmitting packet (ID: {packet.id}, MsgType: {packet.type}, Checksum {packet.checksum})")
+
+                self.tx_window[window_index] = {"packet": packet,
+                                                "timer": Timer(TX_TIMEOUT, self.__resend_packet, args=[packet.id])}
+                self.tx_window[window_index]["timer"].start()
+            self.__write(packet)
+            self.tx_next_seq_num = (self.tx_next_seq_num + 1) % MAX_ID
+            logger.debug(self.__tx_window_to_str())
 
     # Add packet to rx_window, handle ack'ing behavior
     def __rx_packet(self, packet: Packet):
@@ -179,6 +186,13 @@ class CommHandler(Process):
             self.__handle_ack(packet)
             return
 
+        # Deliver image packets directly, if applicable
+        elif not RELIABLE_IMG and packet.type == MsgType.IMAGE:
+            logger.debug(f"Received unreliable image packet, "
+                         f"delivering directly to application (Length: {packet.length}).")
+            self.in_queue.put(packet, True, None)
+            return
+
         if packet.id == self.rx_base:
             # Packet is in-order, deliver directly to application alongside any packets waiting in buffer
             self.rx_window[0] = packet
@@ -187,8 +201,7 @@ class CommHandler(Process):
             # Cumulative ACK handler
             self.__send_ack(packet.id)  # TODO: replace with CACK handler
 
-        elif (packet.id - WINDOW_SIZE) % MAX_ID < self.rx_base or \
-                (self.rx_base < packet.id < (self.rx_base + WINDOW_SIZE)):
+        elif 0 < (packet.id - self.rx_base) % MAX_ID < WINDOW_SIZE:
             # Packet is out-of-order
             window_index = (packet.id - self.rx_base) % MAX_ID
             if not ORD_DELIVERY:
@@ -216,6 +229,7 @@ class CommHandler(Process):
         logger.info(f"Handshake received over {mode}.")
         self.comm_mode = mode  # Switch comm_mode to the medium handshake was received over
         self.in_queue.put(packet, True, None)
+        self.rx_base = packet.id + 1
         # If handshake already exists in tx_window, acknowledge it
         for i in range(WINDOW_SIZE):
             if self.tx_window[i] is not None and self.tx_window[i] != "ACK":

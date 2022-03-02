@@ -2,36 +2,34 @@ import logging
 from SensorLib.CameraHandler import CameraHandler
 from CommSys.CommHandler import CommHandler, CommMode
 from CommSys.Packet import MsgType, Packet
-
+import picamera
 logging.basicConfig(filename='robot.log',
                     level=logging.DEBUG,
                     format='%(asctime)s | %(funcName)s | %(levelname)s | %(message)s')
 
+
 comm_handler = CommHandler()
-cam_handler = CameraHandler(comm_handler)
+cam = picamera.PiCamera(resolution='640x480', framerate=24)
+cam_handler = CameraHandler(comm_handler, cam)
 
 LIVE_VIDEO = True
 
-
-def tx_window_test():
-    comm_handler.start(mode=CommMode.DEBUG)
-
-    for i in range(15):
-        comm_handler.send_packet(Packet(ptype=MsgType.TEXT, pid=0, data=(b'Message #'+str(i).encode('utf-8'))))
-
+def test_video():
+    comm_handler.start(CommMode.DEBUG)
+    cam_handler.start()
     try:
         while True:
             pass
-    except KeyboardInterrupt:
-        pass
     finally:
+        cam_handler.stop()
         comm_handler.stop()
+
 
 def main():
     logging.info("Robot starting...")
     handshake_packet = Packet(ptype=MsgType.HANDSHAKE, pid=0, data=b'')
     comm_handler.send_packet(handshake_packet)
-    comm_handler.start()
+    comm_handler.start(CommMode.HANDSHAKE)
 
     print("Connection with landbase established!")
 
