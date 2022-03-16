@@ -14,6 +14,7 @@ from WebGUI.WebGUI_Flask import app
 
 fps = FPS()
 comm_handler = CommHandler()
+app.config['commHandler'] = comm_handler
 
 logging.basicConfig(filename='landbase.log',
                     level=logging.DEBUG,

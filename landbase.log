@@ -7917,3 +7917,155 @@ Traceback (most recent call last):
     return sendDirectionCommand(command, comm_handler)
 NameError: name 'comm_handler' is not defined
 2022-03-15 18:28:44,298 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 18:28:44] "[35m[1mPOST /move HTTP/1.1[0m" 500 -
+2022-03-15 18:29:29,363 | main | INFO | Landbase starting...
+2022-03-15 18:29:29,364 | __init__ | INFO | Using select as epoll is not available
+2022-03-15 18:29:29,365 | __init__ | INFO | Using select as epoll is not available
+2022-03-15 18:29:29,373 | _log | WARNING |  * Running on all addresses.
+   WARNING: This is a development server. Do not use it in a production deployment.
+2022-03-15 18:29:29,374 | _log | INFO |  * Running on http://172.30.92.105:5000/ (Press CTRL+C to quit)
+2022-03-15 18:29:40,571 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 18:29:40] "GET / HTTP/1.1" 200 -
+2022-03-15 18:29:40,614 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 18:29:40] "[36mGET /static/compass-boat.png HTTP/1.1[0m" 304 -
+2022-03-15 18:29:40,636 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 18:29:40] "[36mGET /static/script/Decoder.js HTTP/1.1[0m" 304 -
+2022-03-15 18:29:40,637 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 18:29:40] "[36mGET /static/script/YUVCanvas.js HTTP/1.1[0m" 304 -
+2022-03-15 18:29:40,650 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 18:29:40] "GET /script.js HTTP/1.1" 200 -
+2022-03-15 18:29:40,652 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 18:29:40] "[36mGET /static/script/Player.js HTTP/1.1[0m" 304 -
+2022-03-15 18:29:40,820 | add | INFO | Managing websocket [Local => 172.30.92.105:9000 | Remote => 172.30.92.105:60763]
+2022-03-15 18:29:40,820 | add | INFO | Managing websocket [Local => 172.30.92.105:8000 | Remote => 172.30.92.105:60764]
+2022-03-15 18:29:40,846 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 18:29:40] "[32mGET /Decoder.js HTTP/1.1[0m" 302 -
+2022-03-15 18:29:40,980 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 18:29:40] "[36mGET /static/script/Decoder.js HTTP/1.1[0m" 304 -
+2022-03-15 18:29:41,009 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 18:29:41] "[36mGET /static/boat_marker.png HTTP/1.1[0m" 304 -
+2022-03-15 18:29:41,042 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 18:29:41] "[36mGET /static/script/avc.wasm HTTP/1.1[0m" 304 -
+2022-03-15 18:29:42,487 | log_exception | ERROR | Exception on /move [POST]
+Traceback (most recent call last):
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\flask\app.py", line 2073, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\flask\app.py", line 1518, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\flask\app.py", line 1516, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\flask\app.py", line 1502, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**req.view_args)
+  File "C:\Users\rland\ECE 4805\ComSys-for-Ocean-Power-Robots\WebGUI\WebGUI_Flask.py", line 63, in move
+    return sendDirectionCommand(command, comm_handler)
+NameError: name 'comm_handler' is not defined
+2022-03-15 18:29:42,489 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 18:29:42] "[35m[1mPOST /move HTTP/1.1[0m" 500 -
+2022-03-15 18:29:46,118 | log_exception | ERROR | Exception on /move [POST]
+Traceback (most recent call last):
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\flask\app.py", line 2073, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\flask\app.py", line 1518, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\flask\app.py", line 1516, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\flask\app.py", line 1502, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**req.view_args)
+  File "C:\Users\rland\ECE 4805\ComSys-for-Ocean-Power-Robots\WebGUI\WebGUI_Flask.py", line 63, in move
+    return sendDirectionCommand(command, comm_handler)
+NameError: name 'comm_handler' is not defined
+2022-03-15 18:29:46,119 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 18:29:46] "[35m[1mPOST /move HTTP/1.1[0m" 500 -
+2022-03-15 18:39:51,538 | log_exception | ERROR | Exception on /move [POST]
+Traceback (most recent call last):
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\flask\app.py", line 2073, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\flask\app.py", line 1518, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\flask\app.py", line 1516, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\flask\app.py", line 1502, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**req.view_args)
+  File "C:\Users\rland\ECE 4805\ComSys-for-Ocean-Power-Robots\WebGUI\WebGUI_Flask.py", line 63, in move
+    return sendDirectionCommand(command, comm_handler)
+NameError: name 'comm_handler' is not defined
+2022-03-15 18:39:51,539 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 18:39:51] "[35m[1mPOST /move HTTP/1.1[0m" 500 -
+2022-03-15 18:42:18,704 | log_exception | ERROR | Exception on /goToCoordinates [POST]
+Traceback (most recent call last):
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\flask\app.py", line 2073, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\flask\app.py", line 1518, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\flask\app.py", line 1516, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\flask\app.py", line 1502, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**req.view_args)
+  File "C:\Users\rland\ECE 4805\ComSys-for-Ocean-Power-Robots\WebGUI\WebGUI_Flask.py", line 40, in goToCoordinates
+    return sendMoveToCommand(float(latitude), float(longitude), comm_handler)
+NameError: name 'comm_handler' is not defined
+2022-03-15 18:42:18,705 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 18:42:18] "[35m[1mPOST /goToCoordinates HTTP/1.1[0m" 500 -
+2022-03-15 20:02:09,047 | unhandled_error | ERROR | Failed to receive data
+Traceback (most recent call last):
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\ws4py\websocket.py", line 394, in once
+    b = self.sock.recv(self.reading_buffer_size)
+ConnectionAbortedError: [WinError 10053] An established connection was aborted by the software in your host machine
+2022-03-15 20:02:09,041 | process | DEBUG | Closing message received (1001) 'b'''
+2022-03-15 20:02:09,087 | run | INFO | Terminating websocket [Local => 172.30.92.105:8000 | Remote => 172.30.92.105:60764]
+2022-03-15 20:02:09,106 | run | INFO | Terminating websocket [Local => 172.30.92.105:9000 | Remote => 172.30.92.105:60763]
+2022-03-15 21:00:53,949 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 21:00:53] "GET /script.js HTTP/1.1" 200 -
+2022-03-15 21:00:53,966 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 21:00:53] "[36mGET /static/compass-boat.png HTTP/1.1[0m" 304 -
+2022-03-15 21:00:53,973 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 21:00:53] "[36mGET /static/script/YUVCanvas.js HTTP/1.1[0m" 304 -
+2022-03-15 21:00:53,991 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 21:00:53] "[36mGET /static/script/Decoder.js HTTP/1.1[0m" 304 -
+2022-03-15 21:00:53,996 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 21:00:53] "[36mGET /static/script/Player.js HTTP/1.1[0m" 304 -
+2022-03-15 21:01:03,713 | add | INFO | Managing websocket [Local => 172.30.92.105:9000 | Remote => 172.30.92.105:60898]
+2022-03-15 21:01:03,721 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 21:01:03] "[32mGET /Decoder.js HTTP/1.1[0m" 302 -
+2022-03-15 21:01:03,721 | add | INFO | Managing websocket [Local => 172.30.92.105:8000 | Remote => 172.30.92.105:60899]
+2022-03-15 21:01:03,761 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 21:01:03] "[36mGET /static/script/Decoder.js HTTP/1.1[0m" 304 -
+2022-03-15 21:01:03,804 | _log | INFO | 172.30.92.105 - - [15/Mar/2022 21:01:03] "[36mGET /static/script/avc.wasm HTTP/1.1[0m" 304 -
+2022-03-15 21:29:35,215 | unhandled_error | ERROR | Failed to receive data
+Traceback (most recent call last):
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\ws4py\websocket.py", line 394, in once
+    b = self.sock.recv(self.reading_buffer_size)
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+2022-03-15 21:29:35,240 | run | INFO | Terminating websocket [Local => 172.30.92.105:8000 | Remote => 172.30.92.105:60899]
+2022-03-15 21:29:35,216 | unhandled_error | ERROR | Failed to receive data
+Traceback (most recent call last):
+  File "C:\Users\rland\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.8_qbz5n2kfra8p0\LocalCache\local-packages\Python38\site-packages\ws4py\websocket.py", line 394, in once
+    b = self.sock.recv(self.reading_buffer_size)
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+2022-03-15 21:29:35,284 | run | INFO | Terminating websocket [Local => 172.30.92.105:9000 | Remote => 172.30.92.105:60898]
+2022-03-16 14:46:26,789 | main | INFO | Landbase starting...
+2022-03-16 14:46:26,790 | __init__ | INFO | Using select as epoll is not available
+2022-03-16 14:46:26,794 | __init__ | INFO | Using select as epoll is not available
+2022-03-16 14:46:26,812 | _log | WARNING |  * Running on all addresses.
+   WARNING: This is a development server. Do not use it in a production deployment.
+2022-03-16 14:46:26,813 | _log | INFO |  * Running on http://172.29.32.203:5000/ (Press CTRL+C to quit)
+2022-03-16 14:46:38,818 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:46:38] "GET / HTTP/1.1" 200 -
+2022-03-16 14:46:39,772 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:46:39] "GET /static/compass-boat.png HTTP/1.1" 200 -
+2022-03-16 14:46:39,797 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:46:39] "GET /script.js HTTP/1.1" 200 -
+2022-03-16 14:46:39,797 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:46:39] "GET /static/script/Decoder.js HTTP/1.1" 200 -
+2022-03-16 14:46:39,805 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:46:39] "GET /static/script/YUVCanvas.js HTTP/1.1" 200 -
+2022-03-16 14:46:39,805 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:46:39] "GET /static/script/Player.js HTTP/1.1" 200 -
+2022-03-16 14:46:40,082 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:46:40] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2022-03-16 14:46:52,033 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:46:52] "GET / HTTP/1.1" 200 -
+2022-03-16 14:46:52,095 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:46:52] "[36mGET /static/compass-boat.png HTTP/1.1[0m" 304 -
+2022-03-16 14:46:52,137 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:46:52] "GET /script.js HTTP/1.1" 200 -
+2022-03-16 14:46:52,181 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:46:52] "[36mGET /static/script/YUVCanvas.js HTTP/1.1[0m" 304 -
+2022-03-16 14:46:52,188 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:46:52] "[36mGET /static/script/Decoder.js HTTP/1.1[0m" 304 -
+2022-03-16 14:46:52,190 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:46:52] "[36mGET /static/script/Player.js HTTP/1.1[0m" 304 -
+2022-03-16 14:46:52,458 | add | INFO | Managing websocket [Local => 172.29.32.203:9000 | Remote => 172.29.32.203:57071]
+2022-03-16 14:46:52,468 | add | INFO | Managing websocket [Local => 172.29.32.203:8000 | Remote => 172.29.32.203:57072]
+2022-03-16 14:46:52,502 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:46:52] "[32mGET /Decoder.js HTTP/1.1[0m" 302 -
+2022-03-16 14:46:52,546 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:46:52] "[36mGET /static/script/Decoder.js HTTP/1.1[0m" 304 -
+2022-03-16 14:46:52,739 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:46:52] "GET /static/script/avc.wasm HTTP/1.1" 200 -
+2022-03-16 14:46:52,746 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:46:52] "GET /static/boat_marker.png HTTP/1.1" 200 -
+2022-03-16 14:48:54,267 | main | INFO | Landbase starting...
+2022-03-16 14:48:54,268 | __init__ | INFO | Using select as epoll is not available
+2022-03-16 14:48:54,270 | __init__ | INFO | Using select as epoll is not available
+2022-03-16 14:48:54,280 | _log | WARNING |  * Running on all addresses.
+   WARNING: This is a development server. Do not use it in a production deployment.
+2022-03-16 14:48:54,281 | _log | INFO |  * Running on http://172.29.32.203:5000/ (Press CTRL+C to quit)
+2022-03-16 14:48:54,375 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:48:54] "GET / HTTP/1.1" 200 -
+2022-03-16 14:48:54,451 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:48:54] "[36mGET /static/compass-boat.png HTTP/1.1[0m" 304 -
+2022-03-16 14:48:54,464 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:48:54] "[36mGET /static/script/Decoder.js HTTP/1.1[0m" 304 -
+2022-03-16 14:48:54,478 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:48:54] "GET /script.js HTTP/1.1" 200 -
+2022-03-16 14:48:54,480 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:48:54] "[36mGET /static/script/YUVCanvas.js HTTP/1.1[0m" 304 -
+2022-03-16 14:48:54,672 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:48:54] "[36mGET /static/script/Player.js HTTP/1.1[0m" 304 -
+2022-03-16 14:48:54,748 | add | INFO | Managing websocket [Local => 172.29.32.203:9000 | Remote => 172.29.32.203:57385]
+2022-03-16 14:48:54,750 | add | INFO | Managing websocket [Local => 172.29.32.203:8000 | Remote => 172.29.32.203:57387]
+2022-03-16 14:48:54,773 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:48:54] "[32mGET /Decoder.js HTTP/1.1[0m" 302 -
+2022-03-16 14:48:54,806 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:48:54] "[36mGET /static/script/Decoder.js HTTP/1.1[0m" 304 -
+2022-03-16 14:48:54,942 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:48:54] "[36mGET /static/script/avc.wasm HTTP/1.1[0m" 304 -
+2022-03-16 14:48:54,977 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:48:54] "[36mGET /static/boat_marker.png HTTP/1.1[0m" 304 -
+2022-03-16 14:49:02,119 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:49:02] "POST /move HTTP/1.1" 200 -
+2022-03-16 14:49:02,730 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:49:02] "POST /move HTTP/1.1" 200 -
+2022-03-16 14:49:03,739 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:49:03] "POST /move HTTP/1.1" 200 -
+2022-03-16 14:49:04,727 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:49:04] "POST /move HTTP/1.1" 200 -
+2022-03-16 14:49:05,224 | _log | INFO | 172.29.32.203 - - [16/Mar/2022 14:49:05] "POST /move HTTP/1.1" 200 -
