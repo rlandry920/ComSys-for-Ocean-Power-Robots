@@ -3,7 +3,7 @@ var currDirection = 0;
 var markerShown = false;
 var moving = "stop";
 var speed = 50;
-var refreshTime = 60000 // Every minute
+var refreshTime = 1000 // Every second
 
 var robot_flask_url = "http://localhost:5000/"
 
@@ -11,27 +11,73 @@ var map, currLocationMarker, goToMarker;
 
 $(document).ready(function () {
     var pressedKey = -1;
-    addMesssage("Log:", "b")
+    addMessage("Log:", "b")
     initMap();
     var refreshInterval = setInterval(refresh, refreshTime);
+
+    //H264 PLAYER BELOW FROM https://www.codeinsideout.com/blog/pi/stream-picamera-h264/
+    // player
+    window.player = new Player({
+        useWorker: true,
+        webgl: "auto",
+        size: { width: 424, height: 240 },
+    });
+    var playerElement = document.getElementById("viewer");
+    playerElement.appendChild(window.player.canvas);
+
+    // Camera Websocket
+    var wsCameraUri =
+        window.location.protocol.replace(/http/, "ws") +
+        "//" +
+        window.location.hostname +
+        ":9000";
+    var wsCamera = new WebSocket(wsCameraUri);
+    wsCamera.binaryType = "arraybuffer";
+    wsCamera.onopen = function (e) {
+        console.log("Camera Client connected");
+        wsCamera.onmessage = function (msg) {
+            // decode stream
+            console.log("Camera Client Received message");
+            window.player.decode(new Uint8Array(msg.data));
+        };
+    };
+    wsCamera.onclose = function (e) {
+        console.log("Camera Client disconnected");
+    };
+
+    // Data Websocket
+    var wsDataUri =
+        window.location.protocol.replace(/http/, "ws") +
+        "//" +
+        window.location.hostname +
+        ":8000";
+    var wsData = new WebSocket(wsDataUri);
+    wsData.binaryType = "arraybuffer";
+    wsData.onopen = function (e) {
+        console.log("Data Client connected");
+        wsData.onmessage = function (msg) {
+            var data = JSON.parse(msg.data);
+            var type = data["type"];
+            switch (type) {
+                case "gps":
+                    currLocation.lat = Math.round(data["lat"] * 10000) / 10000
+                    currLocation.lng = Math.round(data["long"] * 10000) / 10000
+                    console.log("Received GPS data");
+                    break;
+                default:
+                    console.log("Received invalid message");
+            }
+        };
+    };
+    wsData.onclose = function (e) {
+        console.log("Data Client disconnected");
+    };
 
     $("#move").click(function () {
         var lat_dir = document.querySelector('input[name="latitude_dir"]:checked').value[0];
         var long_dir = document.querySelector('input[name="longitude_dir"]:checked').value[0];
         sendGoToCommand($("#lat").val(), $("#long").val(), lat_dir, long_dir)
-        addMesssage("Coordinates sent", "s")
-        if (!isNaN($("#lat").val()) && $("#lat").val() != "") {
-            currLocation.lat = parseFloat($("#lat").val());
-            if (lat_dir == "S") {
-                currLocation.lat = -currLocation.lat
-            }
-        }
-        if (!isNaN($("#long").val()) && $("#long").val() != "") {
-            currLocation.lng = parseFloat($("#long").val());
-            if (long_dir == "W") {
-                currLocation.lng = -currLocation.lng
-            }
-        }
+        addMessage("Coordinates sent", "s")
         $("#lat").val("")
         $("#long").val("")
     });
@@ -39,40 +85,48 @@ $(document).ready(function () {
     $("#left").mousedown(function () {
         if (moving != "turnLeft") {
             sendMoveCommand("turnLeft")
-            addMesssage("Turn left command sent", "s")
+            moving = "turnLeft";
+            addMessage("Turn left command sent", "s")
         } else {
             sendMoveCommand("stop")
-            addMesssage("Stop command sent", "s")
+            moving = "stop";
+            addMessage("Stop command sent", "s")
         }
     });
 
     $("#right").mousedown(function () {
         if (moving != "turnRight") {
             sendMoveCommand("turnRight")
-            addMesssage("Turn right command sent", "s")
+            moving = "turnRight";
+            addMessage("Turn right command sent", "s")
         } else {
             sendMoveCommand("stop")
-            addMesssage("Stop command sent", "s")
+            moving = "stop";
+            addMessage("Stop command sent", "s")
         }
     });
 
     $("#forward").mousedown(function () {
         if (moving != "moveForward") {
             sendMoveCommand("moveForward")
-            addMesssage("Move forward command sent", "s")
+            moving = "moveForward";
+            addMessage("Move forward command sent", "s")
         } else {
             sendMoveCommand("stop")
-            addMesssage("Stop command sent", "s")
+            moving = "stop";
+            addMessage("Stop command sent", "s")
         }
     });
 
     $("#backward").mousedown(function () {
         if (moving != "moveBackward") {
             sendMoveCommand("moveBackward")
-            addMesssage("Move backward command sent", "s")
+            moving = "moveBackward"
+            addMessage("Move backward command sent", "s")
         } else {
             sendMoveCommand("stop")
-            addMesssage("Stop command sent", "s")
+            moving = "stop";
+            addMessage("Stop command sent", "s")
         }
     });
 
@@ -82,22 +136,26 @@ $(document).ready(function () {
 
             if (key == 39) {
                 sendMoveCommand("turnRight")
-                addMesssage("Turn right command sent", "s")
+                moving = "turnRight";
+                addMessage("Turn right command sent", "s")
                 pressedKey = 39
             }
             else if (key == 37) {
                 sendMoveCommand("turnLeft")
-                addMesssage("Turn left command sent", "s")
+                moving = "turnLeft";
+                addMessage("Turn left command sent", "s")
                 pressedKey = 37
             }
             else if (key == 38) {
                 sendMoveCommand("moveForward")
-                addMesssage("Move forward command sent", "s")
+                moving = "moveForward";
+                addMessage("Move forward command sent", "s")
                 pressedKey = 37
             }
             else if (key == 40) {
                 sendMoveCommand("moveBackward")
-                addMesssage("Move backward command sent", "s")
+                moving = "moveBackward";
+                addMessage("Move backward command sent", "s")
                 pressedKey = 37
             }
         }
@@ -109,7 +167,7 @@ $(document).ready(function () {
 
         if (key == 39 || key == 37 || key == 38 || key == 40) {
             sendMoveCommand("stop")
-            addMesssage("Stop command sent", "s")
+            addMessage("Stop command sent", "s")
             pressedKey = -1
         }
 
@@ -136,8 +194,8 @@ function refresh() {
     if (moving != "stop") {
         sendMoveCommand(moving);
     }
-    sendGetDirectionCommand();
-    sendGetCoordinatesCommand();
+    //sendGetDirectionCommand();
+    //sendGetCoordinatesCommand();
 
     $('#compass_image').css({
         'transform': 'rotate(' + currDirection + 'deg)',
@@ -228,7 +286,11 @@ function sendGoToCommand(lat, long, lat_dir, long_dir) {
         contentType: "application/json",
         dataType: "text",
         success: function (response) {
-            addMesssage(response, "r")
+            addMessage(response, "r")
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            addMessage("Go to coordinates failed: " + XMLHttpRequest.status + " " + errorThrown, 'r');
+            moving = "stop"
         }
 
     });
@@ -273,22 +335,25 @@ function sendMoveCommand(command) {
         contentType: "application/json",
         dataType: "text",
         success: function (response) {
-            moving = command;
-            addMesssage(response, "r")
+            addMessage(response, "r")
             updateMoveButtonsText();
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            addMessage(command + " failed: " + XMLHttpRequest.status + " " + errorThrown, 'r');
+            moving = "stop"
         }
     });
 }
 
-function addMesssage(messageString, messageType) {
+function addMessage(messageString, messageType) {
     if (messageType == "r") {
-        var $p = $('<p style="color:red;"></p>');
+        var $p = $('<p style="color:red; line-height:100%;"></p>');
     }
     else if (messageType == "b") {
-        var $p = $('<p style="color:black;"></p>');
+        var $p = $('<p style="color:black; line-height:100%;"></p>');
     }
     else {
-        var $p = $('<p style="color:blue;"></p>');
+        var $p = $('<p style="color:blue; line-height:100%;"></p>');
     }
     $p.text(messageString)
     $("#message-box").append($p)
