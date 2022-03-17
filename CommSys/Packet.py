@@ -24,7 +24,7 @@ NUM_CKSM_BYTES = 2
 NUM_LEN_BYTES = 2
 
 MIN_PACKET_SIZE = NUM_SYNC_BYTES + NUM_TYPE_BYTES + NUM_ID_BYTES + \
-                  NUM_CKSM_BYTES + NUM_LEN_BYTES
+    NUM_CKSM_BYTES + NUM_LEN_BYTES
 MAX_DATA_SIZE = pow(2, (8 * NUM_LEN_BYTES))
 
 SYNC_WORD = b'\xAA' * NUM_SYNC_BYTES
@@ -49,6 +49,7 @@ class MsgType(Enum):
     IMAGE = b'\x09'
     MTR_CMD = b'\x0A'  # Motor Command
     GPS_CMD = b'\x0B'
+    MTR_SWITCH_CMD = b'\x0C'
 
     # Data is an IP datagram to be forwarded (NOT IMPLEMENTED BY RELEASE)
     IP = b'\x0C'
@@ -100,11 +101,11 @@ class Packet:
 
     def to_binary(self):
         return SYNC_WORD + \
-               self.type.value + \
-               self.id.to_bytes(length=NUM_ID_BYTES, byteorder='big') + \
-               self.checksum + \
-               self.length.to_bytes(length=NUM_LEN_BYTES, byteorder='big') + \
-               self.data
+            self.type.value + \
+            self.id.to_bytes(length=NUM_ID_BYTES, byteorder='big') + \
+            self.checksum + \
+            self.length.to_bytes(length=NUM_LEN_BYTES, byteorder='big') + \
+            self.data
 
     def calc_checksum(self):
         temp = self.checksum

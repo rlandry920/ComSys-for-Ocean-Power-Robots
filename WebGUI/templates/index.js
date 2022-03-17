@@ -184,6 +184,14 @@ $(document).ready(function () {
         updateSpeed(this.value);
     }
 
+    document.getElementById("wave-glider").onclick = function () {
+        sendSwitchMotorCommand("Wave-Glider");
+    }
+
+    document.getElementById("heave-plate").onclick = function () {
+        sendSwitchMotorCommand("Heave-Plate");
+    }
+
     google.maps.event.addListener(map, 'click', function (event) {
         console.log("MAP")
         placeMarker(event.latLng);
@@ -318,6 +326,19 @@ function sendGetCoordinatesCommand() {
             currLocation.lat = Math.round(response["lat"] * 1000) / 1000;
             currLocation.lng = Math.round(response["long"] * 1000) / 1000;
         }
+    });
+}
+
+function sendSwitchMotorCommand(motor) {
+    $.ajax({
+        type: 'POST',
+        url: "{{ url_for("switchMotor") }}",
+        data: motor,
+        contentType: "text",
+        dataType: "text",
+        success: function (response) {
+            addMessage(response, "r")
+        },
     });
 }
 

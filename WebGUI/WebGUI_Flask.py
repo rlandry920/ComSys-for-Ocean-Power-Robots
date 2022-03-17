@@ -79,6 +79,11 @@ def getCoordinates():
     return currCoordinates
 
 
+@app.route('/switchMotor', methods=['POST', 'DELETE'])
+def switchMotor():
+    return sendMotorSwitchCommand(request.data.decode('ascii'), app.config['commHandler'])
+
+
 @app.route('/heartbeat', methods=['POST'])
 def get_robot_heartbeat():
     status = request.form['status']
