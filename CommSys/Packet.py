@@ -49,6 +49,7 @@ class MsgType(Enum):
     IMAGE = b'\x09'
     MTR_CMD = b'\x0A'  # Motor Command
     GPS_CMD = b'\x0B'
+    MTR_SWITCH_CMD = b'\x0C'
 
     # Data is an IP datagram to be forwarded (NOT IMPLEMENTED BY RELEASE)
     IP = b'\x0C'

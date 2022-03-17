@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)  # gets logger of highest-level script
 
 
 class CameraHandler:
-    def __init__(self, comm_handler: CommHandler,camera=None):
+    def __init__(self, comm_handler: CommHandler, camera=None):
 
         self.comm_handler = comm_handler
         if camera is None:
@@ -43,11 +43,17 @@ class CameraHandler:
         self.t.start()
 
     def update_picam(self):
+        self.camera: PiCamera
         logger.debug("CameraHandler using PiCamera.")
-        print(self.camera)
         frame_buffer = FrameBuffer()
         self.camera.start_recording(frame_buffer, format='h264', profile="baseline", bitrate=h264_bitrate)
+        self.camera.request_key_frame()
+        last_key_timestamp = time.time()  # TODO testing keyframe requests
         while not self.stopped:
+            if time.time() - last_key_timestamp > 1:  # TODO keyframe every second
+                self.camera.request_key_frame()
+                last_key_timestamp = time.time()
+
             with frame_buffer.condition:
                 frame_buffer.condition.wait()
                 packet = Packet(ptype=MsgType.IMAGE, pid=0, data=frame_buffer.frame)

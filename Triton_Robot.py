@@ -9,7 +9,7 @@ logging.basicConfig(filename='robot.log',
 
 
 comm_handler = CommHandler()
-cam = picamera.PiCamera(resolution='640x480', framerate=24)
+cam = picamera.PiCamera(resolution='320x240', framerate=4)
 cam_handler = CameraHandler(comm_handler, cam)
 
 LIVE_VIDEO = True

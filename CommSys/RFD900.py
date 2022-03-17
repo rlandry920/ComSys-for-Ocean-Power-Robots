@@ -8,7 +8,7 @@ from CommSys.Packet import Packet, PacketError, MIN_PACKET_SIZE, SYNC_WORD, NUM_
 import logging
 
 SER_DEVICE = "/dev/ttyAMA0"
-BAUD=115200
+BAUD = 115200
 RTSCTS = False
 FLUSH_TIME = 10
 
@@ -65,7 +65,7 @@ class RFD900:
                 # Sync word exists in read buffer, head to it
                 if sync_ind > 0:
                     logger.debug("Radio jumping to found sync word")
-                self.read_buf = self.read_buf[sync_ind:]
+                    self.read_buf = self.read_buf[sync_ind:]
 
                 # Try to make a packet from read_buf
                 try:
@@ -74,16 +74,17 @@ class RFD900:
                         # Valid packet was created
                         with self.read_queue_lock:
                             self.read_queue.append(packet)
+                        self.read_buf = self.read_buf[(packet.length + MIN_PACKET_SIZE):]
                     else:
                         logger.debug(f"Radio dropped packet (ID: {packet.id}) due to invalid checksum. "
                                      f"Expected: {packet.checksum}, Actual: {packet.calc_checksum()}")
-                    self.read_buf = self.read_buf[(packet.length + MIN_PACKET_SIZE):]
-                except PacketError:
+                        logger.debug(f"Bad packet: {packet.to_binary()[0:32]}")
+                        self.read_buf = self.read_buf[len(SYNC_WORD):]  # Force jump to next syncword
+                except PacketError as e:
                     pass
-                except ValueError:
-                    # Invalid MsgType was given, flush read_buf
-                    self.read_buf = b''
+                except ValueError:  # Invalid MsgType was given
                     logger.debug(f"Radio dropped packet due to invalid MsgType")
+                    self.read_buf = self.read_buf[len(SYNC_WORD):]  # Force jump to next syncword
 
             if time.time() > self.flush_timer and len(self.read_buf) > 0:
                 self.read_buf = b''

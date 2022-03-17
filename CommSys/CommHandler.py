@@ -1,15 +1,17 @@
 import queue
 
-from CommSys.Packet import Packet, MsgType, NUM_ID_BYTES
+from CommSys.Packet import Packet, MsgType, NUM_ID_BYTES, SYNC_WORD, MIN_PACKET_SIZE, PacketError
 from CommSys.RFD900 import RFD900
 from multiprocessing import Process, Lock, Queue
-from threading import Thread, Timer
+from threading import Thread
 import logging
 import time
 from enum import Enum
 
 # TODO Test ****THOROUGHLY****
-#   - prepend '__' to hidden functions once done testing
+# TODO fix handshake retransmission
+# TODO test Thread lock delays
+# TODO fix acking items outside of window
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +21,7 @@ RX_CACK_DELAY = 0.100
 WINDOW_SIZE = 8
 MAX_ID = pow(2, (8 * NUM_ID_BYTES))
 
-RELIABLE_IMG = False
-ORD_DELIVERY = True  # Determines whether the Selective Repeat Protocol must deliver packets to app. in order of ID
+debug_string = b''
 
 
 class CommMode(Enum):
@@ -31,16 +32,25 @@ class CommMode(Enum):
 
 
 class CommHandler(Process):
-    def __init__(self):
+    def __init__(self, window_size=WINDOW_SIZE, reliable_img=True, ordered_delivery=True,
+                 tx_timeout=TX_TIMEOUT, handshake_timeout=HANDSHAKE_TIMEOUT):
         super(CommHandler, self).__init__()
+        # Configuration
+        self.window_size = window_size
+        self.reliable_img = reliable_img  # Determines whether images are sent and received using RDT
+        self.ordered_delivery = ordered_delivery  # Determines whether selective repeat protocol delivers packets
+        # to the application in order
+        self.tx_timeout = tx_timeout
+        self.handshake_timeout = handshake_timeout
+
         # Selective Repeat Flow-Control Values
         self.tx_base = 0
         self.tx_next_seq_num = 0
-        self.tx_window = [None] * WINDOW_SIZE  # Queue of sent, un-ack'd packets # Todo TX window has to become a Queue
+        self.tx_window = [None] * self.window_size  # Queue of sent, un-ack'd packets
         self.tx_win_lock = Lock()
 
         self.rx_base = 0
-        self.rx_window = [None] * WINDOW_SIZE  # Queue of received, buffered packets to send to application
+        self.rx_window = [None] * self.window_size  # Queue of received, buffered packets to send to application
 
         # Robot Interface Members
         self.in_queue = Queue()
@@ -77,12 +87,14 @@ class CommHandler(Process):
     def start(self, mode=CommMode.HANDSHAKE):
         self.comm_mode = mode
         Process.start(self)
+
         if mode == CommMode.HANDSHAKE:
             # If in handshake mode, try to establish connection within timeout period
             handshake_expire = time.time() + HANDSHAKE_TIMEOUT
             # Incoming handshake will be forwarded to in_queue
             while self.in_queue.empty() and time.time() < handshake_expire:
                 time.sleep(1)
+
             if self.in_queue.empty():
                 raise CommSysError(f'Failed to establish connection!')
             else:
@@ -124,16 +136,18 @@ class CommHandler(Process):
     def __update_egress(self):
         logger.debug("Update egress thread started.")
         while not self.stopped:
-            if (self.tx_next_seq_num - self.tx_base) % MAX_ID < WINDOW_SIZE:
+            self.__resend_expired_packets()
+            if (self.tx_next_seq_num - self.tx_base) % MAX_ID < self.window_size:
                 # Packet waiting in out_queue and available slot in tx_window, pop packet from queue and transmit
-                send_packet = self.out_queue.get(True, None)  # Wait here until item is available
-
                 try:
+                    send_packet = self.out_queue.get(False)  # Wait here until item is available
                     self.__tx_packet(send_packet)
+                except queue.Empty:
+                    pass
                 except FlowControlError as e:
                     logger.warning(str(e))
 
-        self.__shift_tx_window(WINDOW_SIZE)  # Cleanup transmission window
+        self.__shift_tx_window(self.window_size)  # Cleanup transmission window upon exiting
 
     def __update_ingress(self):
         logger.debug("Update ingress thread started.")
@@ -145,19 +159,19 @@ class CommHandler(Process):
 
     # Add packet to tx_window and increment sequence number
     def __tx_packet(self, packet: Packet):
-        packet.checksum = packet.calc_checksum()  # Recalculate packet's checksum w/ new ID
-
-        if not RELIABLE_IMG and packet.type == MsgType.IMAGE:
+        if not self.reliable_img and packet.type == MsgType.IMAGE:
             # Send image packet unreliably
             logger.debug(f"Transmitting unreliable image (Length: {packet.length} Bytes)")
             self.__write(packet)
 
         else:
             packet.id = self.tx_next_seq_num  # Set packet ID
+            packet.checksum = packet.calc_checksum()  # Recalculate packet's checksum w/ new ID
+
             with self.tx_win_lock:
                 window_index = (packet.id - self.tx_base) % MAX_ID
                 # Check to ensure that there is room in the window
-                if window_index < 0 or window_index >= WINDOW_SIZE:
+                if window_index < 0 or window_index >= self.window_size:
                     raise FlowControlError(f'Cannot add packet to full transmission window! '
                                            f'Attempted addition: {packet.type} (ID: {packet.id})')
 
@@ -165,14 +179,14 @@ class CommHandler(Process):
                     raise FlowControlError(f'Attempting to overwrite an item already in transmission window! '
                                            f'Attempted addition to index {window_index}: {packet.type} (ID: {packet.id})')
 
-                logger.debug(f"Transmitting packet (ID: {packet.id}, MsgType: {packet.type}, Checksum {packet.checksum})")
+                logger.debug(
+                    f"Transmitting packet (ID: {packet.id}, MsgType: {packet.type}, Checksum {packet.checksum})")
 
                 self.tx_window[window_index] = {"packet": packet,
-                                                "timer": Timer(TX_TIMEOUT, self.__resend_packet, args=[packet.id])}
-                self.tx_window[window_index]["timer"].start()
-            self.__write(packet)
-            self.tx_next_seq_num = (self.tx_next_seq_num + 1) % MAX_ID
-            logger.debug(self.__tx_window_to_str())
+                                                "timestamp": time.time()}
+                self.__write(packet)
+                self.tx_next_seq_num = (self.tx_next_seq_num + 1) % MAX_ID
+                logger.debug(self.__tx_window_to_str())
 
     # Add packet to rx_window, handle ack'ing behavior
     def __rx_packet(self, packet: Packet):
@@ -187,7 +201,7 @@ class CommHandler(Process):
             return
 
         # Deliver image packets directly, if applicable
-        elif not RELIABLE_IMG and packet.type == MsgType.IMAGE:
+        elif not self.reliable_img and packet.type == MsgType.IMAGE:
             logger.debug(f"Received unreliable image packet, "
                          f"delivering directly to application (Length: {packet.length}).")
             self.in_queue.put(packet, True, None)
@@ -201,10 +215,10 @@ class CommHandler(Process):
             # Cumulative ACK handler
             self.__send_ack(packet.id)  # TODO: replace with CACK handler
 
-        elif 0 < (packet.id - self.rx_base) % MAX_ID < WINDOW_SIZE:
+        elif 0 < (packet.id - self.rx_base) % MAX_ID < self.window_size:
             # Packet is out-of-order
             window_index = (packet.id - self.rx_base) % MAX_ID
-            if not ORD_DELIVERY:
+            if not self.ordered_delivery:
                 # Deliver directly to application, add placeholder to buffer
                 logger.debug(f"Received out-of-order packet (ID: {packet.id}, Expected ID: {self.rx_base}). "
                              f"Delivering directly to application regardless.")
@@ -220,6 +234,7 @@ class CommHandler(Process):
 
         else:
             # Received packet outside of reception window, send duplicate ack
+            # TODO fix behavior
             self.__send_ack(packet.id, MsgType.DACK)
 
     def __recv_handshake(self, packet: Packet, mode: CommMode):
@@ -231,7 +246,7 @@ class CommHandler(Process):
         self.in_queue.put(packet, True, None)
         self.rx_base = packet.id + 1
         # If handshake already exists in tx_window, acknowledge it
-        for i in range(WINDOW_SIZE):
+        for i in range(self.window_size):
             if self.tx_window[i] is not None and self.tx_window[i] != "ACK":
                 if self.tx_window[i]["packet"].type == MsgType.HANDSHAKE:
                     self.__acknowledge_tx_index(i)
@@ -266,22 +281,19 @@ class CommHandler(Process):
         ack_packet = Packet(ptype=ack_type, pid=pid)
         self.__write(ack_packet)
 
-    def __resend_packet(self, pid):
-        try:
-            window_index = (pid - self.tx_base) % MAX_ID
-            # Make sure packet is in tx_window and isn't already ACK'd
-            if window_index < 0 or window_index >= WINDOW_SIZE or self.tx_window[window_index] is None:
-                raise FlowControlError(f"Tried to resend packet ({pid}) not in transmission window!")
+    def __resend_expired_packets(self):
+        t = time.time()
+        with self.tx_win_lock:
+            unacked_packets = list(filter(lambda x: x is not None and type(x) != str, self.tx_window))
+            logger.debug(f'{t} {unacked_packets}')
+            for packet_tuple in unacked_packets:
+                if t - packet_tuple["timestamp"] > self.tx_timeout:
+                    packet = packet_tuple["packet"]
+                    logger.debug(f"Retransmitting packet (ID: {packet.id}).")
+                    self.__write(packet)
+                    packet_tuple["timestamp"] = t
 
-            if type(self.tx_window[window_index]) == str:
-                raise FlowControlError(f"Tried to resend packet ({pid}) that has already been acknowledged")
-
-            logger.debug(f"Retransmitting packet (ID: {pid}).")
-            self.__write(self.tx_window[window_index]["packet"])
-            self.tx_window[window_index]["timer"] = Timer(TX_TIMEOUT, self.__resend_packet, args=[pid])
-            self.tx_window[window_index]["timer"].start()
-        except FlowControlError as e:
-            logger.warning(str(e))
+        logger.debug("Bye bye") # TODO REMOVE
 
     def __read(self):
         if self.comm_mode == CommMode.SATELLITE:
@@ -298,6 +310,11 @@ class CommHandler(Process):
             if new_packet is not None:
                 self.__recv_handshake(new_packet, CommMode.RADIO)
             # TODO Satellite
+        elif self.comm_mode == CommMode.DEBUG:
+            new_packet = read_debug_string()
+            if new_packet is not None:
+                print(f'----Received packet {new_packet.id}, {new_packet.type}: {new_packet.data[0:32]}', end='')
+                self.__rx_packet(new_packet)
 
     def __write(self, packet: Packet):
         if self.comm_mode == CommMode.SATELLITE:
@@ -316,18 +333,24 @@ class CommHandler(Process):
 
         elif self.comm_mode == CommMode.DEBUG:
             # Debug
-            print(f'Writing packet {packet.id}, {packet.type}: {packet.data[0:32]}', end='')
+            print(f'----Writing packet {packet.id}, {packet.type}: {packet.data[0:32]}', end='')
             if packet.length > 32:
                 print('...')
             else:
                 print('')
-            # RX a dummy acknowledgement
-            ack_packet = Packet(MsgType.SACK, pid=packet.id, data=b'')
-            self.__rx_packet(ack_packet)
+            # Additional check
+            if packet.checksum == packet.calc_checksum():
+                # Add packet to debug string
+                global debug_string
+                debug_string += packet.to_binary()
+            else:
+                print(f'Unexpected checksum error. '
+                      f'Expected check: {packet.checksum} Calc check: {packet.calc_checksum()}')
+                print(f'Erroneous packet: ({packet.to_binary()})')
 
     def __acknowledge_tx_index(self, index):
         # Check to ensure that a valid ack_id was recv'd
-        if index < 0 or index >= WINDOW_SIZE:
+        if index < 0 or index >= self.window_size:
             raise FlowControlError(f'Received ACK_ID (ID: {self.tx_base + index}) outside of transmission window. '
                                    f'Expected IDs {self.tx_base}-{self.tx_next_seq_num}')
 
@@ -338,18 +361,13 @@ class CommHandler(Process):
             raise FlowControlError(f'Acknowledgment for unsent packet ({self.tx_base + index}) received.')
 
         logger.debug(f"Acknowledgement received for packet (ID: {self.tx_base + index}).")
-        # Turn off resend timer
-        self.tx_window[index]["timer"].cancel()
-        # Replace with ACK
-        self.tx_window[index] = "ACK"
+        with self.tx_win_lock:
+            # Replace with ACK
+            self.tx_window[index] = "ACK"
 
     # Performs a zero-shift left 'amount' times on the tx_window
     def __shift_tx_window(self, amount):
-        shift_amount = min(WINDOW_SIZE, amount)  # Places a ceiling on how much the window can shift
-        # Cancel all timers in shift range
-        shift_range = list(filter(lambda x: x is not None and x != "ACK", self.tx_window[0:shift_amount]))
-        for pair in shift_range:
-            pair["timer"].cancel()
+        shift_amount = min(self.window_size, amount)  # Places a ceiling on how much the window can shift
 
         with self.tx_win_lock:
             self.tx_base = (self.tx_base + shift_amount) % MAX_ID
@@ -357,15 +375,17 @@ class CommHandler(Process):
 
     # Delivers in-order packets to application and increments rx_base accordingly
     def __deliver_rx_window(self):
-        none_index = self.rx_window.index(None)
+        none_index = self.rx_window.index(None) if None in self.rx_window else -1
         if none_index >= 0:
+            # Deliver up to none_index
             to_deliver = self.rx_window[0:none_index]
             self.rx_window = self.rx_window[none_index:] + [None] * none_index
             self.rx_base = (self.rx_base + none_index) % MAX_ID
         else:
+            # Entire window is populated, deliver everything
             to_deliver = self.rx_window
-            self.rx_window = [None] * WINDOW_SIZE
-            self.rx_base = (self.rx_base + WINDOW_SIZE) % MAX_ID
+            self.rx_window = [None] * self.window_size
+            self.rx_base = (self.rx_base + self.window_size) % MAX_ID
 
         to_deliver = list(filter(lambda x: type(x) == Packet, to_deliver))  # Filter needed in case of "DEL" placeholder
         for item in to_deliver:
@@ -388,3 +408,37 @@ class CommSysError(Exception):
 
 class FlowControlError(CommSysError):
     pass
+
+
+def read_debug_string():
+    global debug_string
+    sync_ind = debug_string.find(SYNC_WORD)
+    if sync_ind >= 0:
+        # Sync word exists in read buffer, head to it
+        if sync_ind > 0:
+            print(f"Debugger jumping to found sync word @ {sync_ind}")
+            print(f"Debug_string before: {debug_string[0:32]}")
+            debug_string = debug_string[sync_ind:]
+            print(f"Debug_string after: {debug_string[0:32]}")
+
+        # Try to make a packet from read_buf
+        try:
+            packet = Packet(data=debug_string)
+            if packet.checksum != packet.calc_checksum():
+                print(f"Debugger dropped packet (ID: {packet.id}) due to invalid checksum. "
+                      f"Expected: {packet.checksum}, Actual: {packet.calc_checksum()}")
+                print(f'Packet: {packet.to_binary()}')
+                debug_string = debug_string[len(SYNC_WORD):]
+                return None
+            else:
+                debug_string = debug_string[(packet.length + MIN_PACKET_SIZE):]
+                return packet
+
+        except PacketError as e:
+            print(f"Unhandled PacketError: {str(e)}")
+            return None
+        except ValueError:
+            # Invalid MsgType was given, flush read_buf
+            print(f"Debugger dropped packet due to invalid MsgType")
+            debug_string = debug_string[len(SYNC_WORD):]
+            return None
