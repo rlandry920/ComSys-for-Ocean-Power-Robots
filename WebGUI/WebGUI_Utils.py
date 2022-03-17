@@ -50,6 +50,22 @@ def sendMoveToCommand(latitude, longitude, commHandler):
     return f"Robot moving to ({round(latitude,4)}, {round(longitude,4)})"
 
 
+def sendMotorSwitchCommand(motor, commHandler):
+    print(motor)
+    if(motor == "Wave-Glider"):
+        motor_switch_packet = Packet(
+            MsgType.MTR_SWITCH_CMD, 0, bytes([0]), False)
+
+    elif(motor == "Heave-Plate"):
+        motor_switch_packet = Packet(
+            MsgType.MTR_SWITCH_CMD, 0, bytes([1]), False)
+    else:
+        return f"Invalid motor"
+
+    commHandler.send_packet(motor_switch_packet)
+    return f"Robot switching to {motor}"
+
+
 def getStringCoordinates(data):
     latitude = ""
     longitude = ""

@@ -18,6 +18,7 @@ currCoordinates = {
 
 logger = logging.getLogger(__name__)
 
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -37,7 +38,7 @@ def goToCoordinates():
     if error != None:
         return error
     else:
-        return sendMoveToCommand(float(latitude), float(longitude), comm_handler)
+        return sendMoveToCommand(float(latitude), float(longitude), app.config['commHandler'])
 
 
 @app.route('/move', methods=['POST', 'DELETE'])
@@ -60,12 +61,12 @@ def move():
         currCoordinates['lat'] -= 0.005
         currCoordinates['long'] -= 0.005
 
-    return sendDirectionCommand(command, comm_handler)
+    return sendDirectionCommand(command, app.config['commHandler'])
 
 
 @app.route('/stop', methods=['POST', 'DELETE'])
 def stop():
-    return sendDirectionCommand("stop", comm_handler)
+    return sendDirectionCommand("stop", app.config['commHandler'])
 
 
 @app.route('/getDirection', methods=['POST', 'DELETE'])
@@ -76,6 +77,11 @@ def getDirection():
 @app.route('/getCoordinates', methods=['POST', 'DELETE'])
 def getCoordinates():
     return currCoordinates
+
+
+@app.route('/switchMotor', methods=['POST', 'DELETE'])
+def switchMotor():
+    return sendMotorSwitchCommand(request.data.decode('ascii'), app.config['commHandler'])
 
 
 @app.route('/heartbeat', methods=['POST'])
@@ -91,6 +97,8 @@ def get_robot_heartbeat():
     return "Heartbeat ACKd"
 
 # Some file is trying to access root/Decoder.js instead of the static URL, this is a temporary fix to resolve this
+
+
 @app.route('/Decoder.js')
 def reroute_js():
     return redirect(url_for('static', filename='script/Decoder.js'))

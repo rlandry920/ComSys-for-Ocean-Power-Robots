@@ -28,7 +28,6 @@ websocketCamera = make_server('', 9000, server_class=WSGIServer,
                               handler_class=WebSocketWSGIRequestHandler,
                               app=WebSocketWSGIApplication(handler_cls=WebSocket))
 
-
 def main():
     logger.info("Landbase starting...")
     comm_handler.start(mode=CommMode.HANDSHAKE)

@@ -63,9 +63,9 @@
 
       <div class="switch-toggle switch-candy-blue">
         <input id="wave-glider" name="view" type="radio" checked />
-        <label for="wave-glider" onclick="">Wave-Glider</label>
+        <label for="wave-glider">Wave-Glider</label>
         <input id="heave-plate" name="view" type="radio" />
-        <label for="heave-plate" onclick="">Heave-Plate</label>
+        <label for="heave-plate">Heave-Plate</label>
         <a></a>
       </div>
       <br />
@@ -124,36 +124,17 @@
   <script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
   <script src="{{url_for('script')}}"></script>
 
-  <!-- H264 PLAYER BELOW FROM https://www.codeinsideout.com/blog/pi/stream-picamera-h264/ -->
   <!-- <script type="module" src="{{url_for('static', filename='script/viewer.js')}}"></script> -->
-  <script type="text/javascript" src="{{url_for('static', filename='./script/Decoder.js')}}"></script>
-  <script type="text/javascript" src="{{url_for('static', filename='./script/YUVCanvas.js')}}"></script>
-  <script type="text/javascript" src="{{url_for('static', filename='./script/Player.js')}}"></script>
-  <script>
-    // player
-    window.player = new Player({
-      useWorker: true,
-      webgl: 'auto',
-      size: { width: 424, height: 240 }
-    })
-    var playerElement = document.getElementById('viewer')
-    playerElement.appendChild(window.player.canvas)
-    // Websocket
-    var wsUri =
-      window.location.protocol.replace(/http/, 'ws')
-      + '//' + window.location.hostname + ':9000'
-    var ws = new WebSocket(wsUri)
-    ws.binaryType = 'arraybuffer'
-    ws.onopen = function (e) {
-      console.log('Client connected')
-      ws.onmessage = function (msg) {
-        // decode stream
-        console.log('Received message')
-        window.player.decode(new Uint8Array(msg.data));
-      }
-    }
-    ws.onclose = function (e) {
-      console.log('Client disconnected')
-    }
-  </script>
+  <script
+    type="text/javascript"
+    src="{{url_for('static', filename='./script/Decoder.js')}}"
+  ></script>
+  <script
+    type="text/javascript"
+    src="{{url_for('static', filename='./script/YUVCanvas.js')}}"
+  ></script>
+  <script
+    type="text/javascript"
+    src="{{url_for('static', filename='./script/Player.js')}}"
+  ></script>
 </html>
