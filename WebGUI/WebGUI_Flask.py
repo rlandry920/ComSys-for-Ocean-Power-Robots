@@ -61,7 +61,7 @@ def move():
         currCoordinates['lat'] -= 0.005
         currCoordinates['long'] -= 0.005
 
-    return sendDirectionCommand(command, app.config['commHandler'])
+    return sendDirectionCommand(command, speed, app.config['commHandler'])
 
 
 @app.route('/stop', methods=['POST', 'DELETE'])

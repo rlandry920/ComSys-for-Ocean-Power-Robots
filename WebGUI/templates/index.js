@@ -343,10 +343,11 @@ function sendSwitchMotorCommand(motor) {
 }
 
 function sendMoveCommand(command) {
+    console.log(document.getElementById("speed").value)
     var data = [
         {
             "command": command,
-            "speed": document.getElementById("speed").value
+            "speed": document.getElementById("speed").value / 100.0
         }
     ];
     $.ajax({
