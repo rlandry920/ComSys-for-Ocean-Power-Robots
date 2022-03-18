@@ -4,34 +4,28 @@ import sys
 import requests
 
 
-def sendDirectionCommand(direction, commHandler):
-    # move_params = {
-    #     "type": "direct",
-    #     "direction": direction
-    # }
-    # r = requests.post(
-    #     f"http://{FEATHER_M0}/move?type=direct&direction={direction}")
-    # print(r.text)
-    # return r.text
+def sendDirectionCommand(direction, speed, commHandler):
     if(direction == "turnLeft"):
-        left = 1
-        right = 0
+        left = -speed
+        right = speed
     elif(direction == "turnRight"):
-        left = 0
-        right = 1
+        left = speed
+        right = -speed
     elif(direction == "moveForward"):
-        left = 1
-        right = 1
+        left = speed
+        right = speed
     elif(direction == "moveBackward"):
-        left = -1
-        right = -1
+        left = -speed
+        right = -speed
     elif(direction == "stop"):
         left = 0
         right = 0
     else:
         return
     motor_command = struct.pack('f', left) + \
-        struct.pack('f', right) + bytes([0])
+        struct.pack('f', right)
+
+    print(motor_command)
 
     motor_command_packet = Packet(MsgType.MTR_CMD, 0, motor_command, False)
 
@@ -42,7 +36,7 @@ def sendDirectionCommand(direction, commHandler):
 
 def sendMoveToCommand(latitude, longitude, commHandler):
     move_command = struct.pack('f', latitude) + \
-        struct.pack('f', longitude) + bytes([0])
+        struct.pack('f', longitude)
 
     motor_command_packet = Packet(MsgType.GPS_CMD, 0, move_command, False)
 
