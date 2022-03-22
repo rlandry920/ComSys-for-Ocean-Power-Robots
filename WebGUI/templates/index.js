@@ -20,7 +20,7 @@ $(document).ready(function () {
     window.player = new Player({
         useWorker: true,
         webgl: "auto",
-        size: { width: 424, height: 240 },
+        size: { width: 300, height: 240 },
     });
     var playerElement = document.getElementById("viewer");
     playerElement.appendChild(window.player.canvas);
