@@ -23,9 +23,7 @@ def sendDirectionCommand(direction, speed, commHandler):
     else:
         return
     motor_command = struct.pack('f', left) + \
-        struct.pack('f', right)
-
-    print(motor_command)
+        struct.pack('f', right) + bytes([0])
 
     motor_command_packet = Packet(MsgType.MTR_CMD, 0, motor_command, False)
 
@@ -36,7 +34,7 @@ def sendDirectionCommand(direction, speed, commHandler):
 
 def sendMoveToCommand(latitude, longitude, commHandler):
     move_command = struct.pack('f', latitude) + \
-        struct.pack('f', longitude)
+        struct.pack('f', longitude) + bytes([0])
 
     motor_command_packet = Packet(MsgType.GPS_CMD, 0, move_command, False)
 
@@ -86,15 +84,3 @@ def checkCoordinates(latitude, longitude):
         return "Invalid longitude"
     else:
         return None
-
-# Cannot implement below for demo due to limitations on how the Arduino acts as an I2C-slave :(
-# @app.route('/randomNum', methods=['POST', 'DELETE'])
-# def randomNum():
-#     r = requests.post("http://<FeatherM0>:<port>/query")
-#     return r.text
-
-
-def get_feather_ip():
-    global FEATHER_M0
-    FEATHER_M0 = input(
-        "Please enter the IP and port of the FeatherM0 Board's HTTP Server: ")
