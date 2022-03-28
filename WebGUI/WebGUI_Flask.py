@@ -31,7 +31,7 @@ def index():
         "num-users": activeUsers
     }
     app.config['websocketData'].manager.broadcast(json.dumps(msg))
-    print(msg)
+    print("WINDOW OPENED")
     return render_template('index.html')
 
 
@@ -113,7 +113,7 @@ def switchMotor():
 
 @app.route('/closeWindow', methods=['POST', 'DELETE'])
 def closeWindow():
-    print("WINDOW CLOSER")
+    print("WINDOW CLOSED")
     global activeUsers
     activeUsers -= 1
     msg = {
