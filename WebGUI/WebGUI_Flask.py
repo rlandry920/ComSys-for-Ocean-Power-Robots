@@ -4,6 +4,7 @@ import logging
 import numpy as np
 import logging
 import cv2
+import json
 from threading import Thread
 
 from WebGUI.WebGUI_Utils import *
@@ -18,9 +19,19 @@ currCoordinates = {
 
 logger = logging.getLogger(__name__)
 
+activeUsers = 0
+
 
 @app.route('/')
 def index():
+    global activeUsers
+    activeUsers += 1
+    msg = {
+        "type": "num-users",
+        "num-users": activeUsers
+    }
+    app.config['websocketData'].manager.broadcast(json.dumps(msg))
+    print(msg)
     return render_template('index.html')
 
 
@@ -38,7 +49,14 @@ def goToCoordinates():
     if error != None:
         return error
     else:
-        return sendMoveToCommand(float(latitude), float(longitude), app.config['commHandler'])
+        message = sendMoveToCommand(float(latitude), float(
+            longitude), app.config['commHandler'])
+        msg = {
+            "type": "message",
+            "message": message
+        }
+        app.config['websocketData'].manager.broadcast(json.dumps(msg))
+        return message
 
 
 @app.route('/move', methods=['POST', 'DELETE'])
@@ -61,40 +79,54 @@ def move():
         currCoordinates['lat'] -= 0.005
         currCoordinates['long'] -= 0.005
 
-    return sendDirectionCommand(command, speed, app.config['commHandler'])
+    message = sendDirectionCommand(command, speed, app.config['commHandler'])
+    msg = {
+        "type": "message",
+                "message": message
+    }
+    app.config['websocketData'].manager.broadcast(json.dumps(msg))
+    return message
 
 
 @app.route('/stop', methods=['POST', 'DELETE'])
 def stop():
-    return sendDirectionCommand("stop", app.config['commHandler'])
-
-
-@app.route('/getDirection', methods=['POST', 'DELETE'])
-def getDirection():
-    return str(currDirection)
-
-
-@app.route('/getCoordinates', methods=['POST', 'DELETE'])
-def getCoordinates():
-    return currCoordinates
+    message = sendDirectionCommand("stop", app.config['commHandler'])
+    msg = {
+        "type": "message",
+                "message": message
+    }
+    app.config['websocketData'].manager.broadcast(json.dumps(msg))
+    return message
 
 
 @app.route('/switchMotor', methods=['POST', 'DELETE'])
 def switchMotor():
-    return sendMotorSwitchCommand(request.data.decode('ascii'), app.config['commHandler'])
+    message = sendMotorSwitchCommand(
+        request.data.decode('ascii'), app.config['commHandler'])
+    msg = {
+        "type": "message",
+        "message": message
+    }
+    app.config['websocketData'].manager.broadcast(json.dumps(msg))
+    return message
 
 
-@app.route('/heartbeat', methods=['POST'])
-def get_robot_heartbeat():
-    status = request.form['status']
-    latitude = float(request.form['latitude'])
-    longitude = float(request.form['longitude'])
+@app.route('/closeWindow', methods=['POST', 'DELETE'])
+def closeWindow():
+    print("WINDOW CLOSER")
+    global activeUsers
+    activeUsers -= 1
+    msg = {
+        "type": "num-users",
+        "num-users": activeUsers
+    }
+    app.config['websocketData'].manager.broadcast(json.dumps(msg))
+    return "Window Closed"
 
-    print("Heartbeat Received")
-    print(f"Robot Status: {status}")
-    print(f"Latitude: {latitude} | Longitude: {longitude}")
 
-    return "Heartbeat ACKd"
+@app.route('/getNumUsers', methods=['POST', 'DELETE'])
+def getNumUsers():
+    return str(activeUsers)
 
 # Some file is trying to access root/Decoder.js instead of the static URL, this is a temporary fix to resolve this
 

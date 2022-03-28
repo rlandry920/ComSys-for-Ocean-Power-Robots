@@ -1,18 +1,19 @@
 #data {
   width: 40%;
-  float: left;
   height: 100vh;
-  display: flex;
-  flex-direction: column;
-  margin-top: 10px;
 }
 
 #visuals {
   width: 30%;
-  float: left;
+  text-align: center;
+}
+
+.container {
   display: flex;
   flex-direction: column;
   margin-top: 10px;
+  justify-content: center;
+  float: left;
 }
 
 #log {
@@ -36,26 +37,36 @@
 }
 
 #location-card {
-  max-width: 400px;
+  min-width: 370px;
   display: flex;
+  position: relative;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 #move-to-card {
   max-width: 400px;
   position: relative;
   align-content: center;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 #move-card {
-  max-width: 400px;
+  max-width: 168px;
+  position: relative;
   align-content: center;
-  display: flex;
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 #motor-switch {
-  max-width: 400px;
+  min-width: 300px;
   display: flex;
   text-align: center;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 #all-cards {
@@ -75,7 +86,30 @@ body {
 }
 
 #map {
-  margin-top: 10px;
+  margin: 10px;
   width: 300px;
   height: 300px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#live_control {
+  border-radius: 5px; /* 5px rounded corners */
+  background-color: rgb(207, 197, 197);
+  border-color: rgb(207, 197, 197);
+  max-width: 400px;
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+#viewer {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#num_users_text {
+  text-align: center;
 }
