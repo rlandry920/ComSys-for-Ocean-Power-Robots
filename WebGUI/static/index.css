@@ -1,0 +1,81 @@
+#data {
+  width: 40%;
+  float: left;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+}
+
+#visuals {
+  width: 30%;
+  float: left;
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+}
+
+#log {
+  margin-top: 10px;
+  width: 30%;
+  height: 100vh;
+  float: left;
+  margin-top: 10px;
+}
+
+#content {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+}
+.cards {
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+  border-radius: 5px; /* 5px rounded corners */
+  background-color: rgb(207, 197, 197);
+  padding: 20px;
+  margin: 10px;
+}
+
+#location-card {
+  max-width: 400px;
+  display: flex;
+}
+
+#move-to-card {
+  max-width: 400px;
+  position: relative;
+  align-content: center;
+}
+
+#move-card {
+  max-width: 400px;
+  align-content: center;
+  display: flex;
+}
+
+#motor-switch {
+  max-width: 400px;
+  display: flex;
+  text-align: center;
+}
+
+#all-cards {
+  margin-bottom: 10px;
+}
+body {
+  background-color: #dbf9fc;
+}
+#move-button {
+  text-align: center;
+}
+#message-box {
+  font: 16px/26px Georgia, Garamond, Serif;
+  overflow: auto;
+  line-height: 10px;
+  height: 80%;
+}
+
+#map {
+  margin-top: 10px;
+  width: 300px;
+  height: 300px;
+}
