@@ -3,34 +3,39 @@ from SensorLib.CameraHandler import CameraHandler
 from CommSys.CommHandler import CommHandler, CommMode
 from CommSys.Packet import MsgType, Packet
 import picamera
+import struct
+import time
+import ME_Integration.escController as esc
+
 logging.basicConfig(filename='robot.log',
                     level=logging.DEBUG,
                     format='%(asctime)s | %(funcName)s | %(levelname)s | %(message)s')
 
 
 comm_handler = CommHandler()
-cam = picamera.PiCamera(resolution='320x240', framerate=4)
+cam = picamera.PiCamera(resolution='320x240', framerate=1)
 cam_handler = CameraHandler(comm_handler, cam)
 
 LIVE_VIDEO = True
 
-def test_video():
-    comm_handler.start(CommMode.DEBUG)
-    cam_handler.start()
-    try:
-        while True:
-            pass
-    finally:
-        cam_handler.stop()
-        comm_handler.stop()
-
-
 def main():
     logging.info("Robot starting...")
-    handshake_packet = Packet(ptype=MsgType.HANDSHAKE, pid=0, data=b'')
-    comm_handler.send_packet(handshake_packet)
-    comm_handler.start(CommMode.HANDSHAKE)
+    print("Arming ESCs...")
+    esc.arm()
+    print("ESCs armed!")
+    print("Testing forwards...")
+    esc.drive_motor(0.3)
+    time.sleep(2)
+    print("Testing backwards...")
+    esc.drive_motor(-0.3)
+    time.sleep(2)
+    esc.drive_motor(0)
+    print("Motors tested!")
 
+    handshake_packet = Packet(ptype=MsgType.HANDSHAKE)
+    comm_handler.send_packet(handshake_packet)
+    print("Connecting to landbase...")
+    comm_handler.start(CommMode.HANDSHAKE)
     print("Connection with landbase established!")
 
     msg1 = b'SYNC'
@@ -77,6 +82,11 @@ def digest_packet(packet: Packet):
         return
     elif packet.type == MsgType.TEXT:
         print(packet.data.decode('utf-8'))
+    elif packet.type == MsgType.MTR_CMD:
+        print(packet.length)
+        left, right = struct.unpack('2f', packet.data)
+        print(f'Recieved motor cmd (ID: {packet.id} LEFT: {str(left)} RIGHT: {str(right)})')
+        esc.drive_motor(left)
     else:
         print(f'Received packet (ID: {packet.id} of type {packet.type})')
 
