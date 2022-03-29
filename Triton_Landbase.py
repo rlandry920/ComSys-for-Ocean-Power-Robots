@@ -15,6 +15,7 @@ fps = FPS()
 comm_handler = CommHandler()
 app.config['commHandler'] = comm_handler
 
+
 logging.basicConfig(filename='landbase.log',
                     level=logging.DEBUG,
                     format='%(asctime)s | %(funcName)s | %(levelname)s | %(message)s')
@@ -23,14 +24,16 @@ logger = logging.getLogger(__name__)
 websocketData = make_server('', 8000, server_class=WSGIServer,
                             handler_class=WebSocketWSGIRequestHandler,
                             app=WebSocketWSGIApplication(handler_cls=WebSocket))
+app.config['websocketData'] = websocketData
 
 websocketCamera = make_server('', 9000, server_class=WSGIServer,
                               handler_class=WebSocketWSGIRequestHandler,
                               app=WebSocketWSGIApplication(handler_cls=WebSocket))
 
+
 def main():
     logger.info("Landbase starting...")
-    comm_handler.start(mode=CommMode.HANDSHAKE)
+    # comm_handler.start(mode=CommMode.HANDSHAKE)
 
     # Live video WebSocket - https://www.codeinsideout.com/blog/pi/stream-picamera-h264/
     websocketCamera.initialize_websockets_manager()

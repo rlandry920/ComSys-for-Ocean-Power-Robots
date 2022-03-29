@@ -4,8 +4,11 @@ var markerShown = false;
 var moving = "stop";
 var speed = 50;
 var refreshTime = 1000 // Every second
+var liveControl = false;
 
 var robot_flask_url = "http://localhost:5000/"
+
+var isPageClosed = false;
 
 var map, currLocationMarker, goToMarker;
 
@@ -13,6 +16,9 @@ $(document).ready(function () {
     var pressedKey = -1;
     addMessage("Log:", "b")
     initMap();
+    checkLiveControl();
+    sendGetNumUsers();
+
     var refreshInterval = setInterval(refresh, refreshTime);
 
     //H264 PLAYER BELOW FROM https://www.codeinsideout.com/blog/pi/stream-picamera-h264/
@@ -58,11 +64,20 @@ $(document).ready(function () {
         wsData.onmessage = function (msg) {
             var data = JSON.parse(msg.data);
             var type = data["type"];
+            console.log(msg)
             switch (type) {
                 case "gps":
                     currLocation.lat = Math.round(data["lat"] * 10000) / 10000
                     currLocation.lng = Math.round(data["long"] * 10000) / 10000
                     console.log("Received GPS data");
+                    break;
+                case "message":
+                    console.log(data["message"])
+                    addMessage(data["message"], "r")
+                    breakl
+                case "num-users":
+                    console.log(data["num-users"])
+                    $("#num_users_text").text("Active Users: " + data["num-users"])
                     break;
                 default:
                     console.log("Received invalid message");
@@ -72,6 +87,22 @@ $(document).ready(function () {
     wsData.onclose = function (e) {
         console.log("Data Client disconnected");
     };
+
+    window.onbeforeunload = function () {
+        navigator.sendBeacon("{{ url_for("closeWindow") }}");
+        // $.ajax({
+        //     type: 'POST',
+        //     url: "{{ url_for("closeWindow") }}",
+        //     contentType: "application/json",
+        //     dataType: "text",
+        //     async: false,
+        // });
+    };
+
+    $("#live_control").click(function () {
+        liveControl = !liveControl
+        checkLiveControl();
+    });
 
     $("#move").click(function () {
         var lat_dir = document.querySelector('input[name="latitude_dir"]:checked').value[0];
@@ -193,18 +224,29 @@ $(document).ready(function () {
     }
 
     google.maps.event.addListener(map, 'click', function (event) {
-        console.log("MAP")
         placeMarker(event.latLng);
     });
 });
+
+function checkLiveControl() {
+    var moveCard = document.getElementById("move-card");
+    var video = document.getElementById("viewer")
+    if (liveControl) {
+        moveCard.style.display = "block";
+        video.style.display = "block"
+        $("#live_control").html("Stop Live Control")
+    } else {
+        moveCard.style.display = "none";
+        video.style.display = "none"
+        $("#live_control").html("Request Live Control")
+    }
+
+}
 
 function refresh() {
     if (moving != "stop") {
         sendMoveCommand(moving);
     }
-    //sendGetDirectionCommand();
-    //sendGetCoordinatesCommand();
-
     $('#compass_image').css({
         'transform': 'rotate(' + currDirection + 'deg)',
         '-ms-transform': 'rotate(' + currDirection + 'deg)',
@@ -274,6 +316,19 @@ function placeMarker(location) {
     map.fitBounds(bounds);
 }
 
+function sendGetNumUsers() {
+    $.ajax({
+        type: 'POST',
+        url: "{{ url_for("getNumUsers") }}",
+        contentType: "application/json",
+        dataType: "text",
+        success: function (response) {
+            $("#num_users_text").text("Active Users: " + parseInt(response))
+        }
+
+    });
+}
+
 function sendGoToCommand(lat, long, lat_dir, long_dir) {
     if (lat_dir == 'S') {
         lat = '-' + lat
@@ -293,39 +348,11 @@ function sendGoToCommand(lat, long, lat_dir, long_dir) {
         data: JSON.stringify(data),
         contentType: "application/json",
         dataType: "text",
-        success: function (response) {
-            addMessage(response, "r")
-        },
         error: function (XMLHttpRequest, textStatus, errorThrown) {
             addMessage("Go to coordinates failed: " + XMLHttpRequest.status + " " + errorThrown, 'r');
             moving = "stop"
         }
 
-    });
-}
-
-function sendGetDirectionCommand(command) {
-    $.ajax({
-        type: 'POST',
-        url: "{{ url_for("getDirection") }}",
-        contentType: "application/json",
-        dataType: "text",
-        success: function (response) {
-            currDirection = parseInt(response)
-        }
-    });
-}
-
-function sendGetCoordinatesCommand() {
-    $.ajax({
-        type: 'POST',
-        url: "{{ url_for("getCoordinates") }}",
-        contentType: "application/json",
-        dataType: "json",
-        success: function (response) {
-            currLocation.lat = Math.round(response["lat"] * 1000) / 1000;
-            currLocation.lng = Math.round(response["long"] * 1000) / 1000;
-        }
     });
 }
 
@@ -336,9 +363,9 @@ function sendSwitchMotorCommand(motor) {
         data: motor,
         contentType: "text",
         dataType: "text",
-        success: function (response) {
-            addMessage(response, "r")
-        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            addMessage("Switch motor" + " failed: " + XMLHttpRequest.status + " " + errorThrown, 'r');
+        }
     });
 }
 
@@ -356,8 +383,7 @@ function sendMoveCommand(command) {
         data: JSON.stringify(data),
         contentType: "application/json",
         dataType: "text",
-        success: function (response) {
-            addMessage(response, "r")
+        success: function () {
             updateMoveButtonsText();
         },
         error: function (XMLHttpRequest, textStatus, errorThrown) {
@@ -391,7 +417,7 @@ function initMap() {
         streetViewControl: false,
     });
     const image = "{{ url_for('static',filename = 'boat_marker.png') }}"
-    console.log(image)
+
     // The current location marker
     currLocationMarker = new google.maps.Marker({
         position: currLocation,
@@ -439,6 +465,4 @@ function updateCurrentLocation() {
     $("#curr_dir").text("Current bearing: " + currDirection.toString() + " degrees")
 
     updateBoatMarker();
-
-
 }
