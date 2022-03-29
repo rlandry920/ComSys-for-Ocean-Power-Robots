@@ -13,24 +13,24 @@ logging.basicConfig(filename='robot.log',
 
 
 comm_handler = CommHandler()
-cam = picamera.PiCamera(resolution='320x240', framerate=1)
+cam = picamera.PiCamera(resolution='320x240', framerate=5)
 cam_handler = CameraHandler(comm_handler, cam)
 
 LIVE_VIDEO = True
 
 def main():
     logging.info("Robot starting...")
-    print("Arming ESCs...")
-    esc.arm()
-    print("ESCs armed!")
-    print("Testing forwards...")
-    esc.drive_motor(0.3)
-    time.sleep(2)
-    print("Testing backwards...")
-    esc.drive_motor(-0.3)
-    time.sleep(2)
-    esc.drive_motor(0)
-    print("Motors tested!")
+    # print("Arming ESCs...")
+    # esc.arm()
+    # print("ESCs armed!")
+    # print("Testing forwards...")
+    # esc.drive_motor(0.3)
+    # time.sleep(2)
+    # print("Testing backwards...")
+    # esc.drive_motor(-0.3)
+    # time.sleep(2)
+    # esc.drive_motor(0)
+    # print("Motors tested!")
 
     handshake_packet = Packet(ptype=MsgType.HANDSHAKE)
     comm_handler.send_packet(handshake_packet)

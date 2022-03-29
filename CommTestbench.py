@@ -4,7 +4,7 @@ import time
 import logging
 import serial
 from CommSys.SerialHandler import PacketReaderThread
-
+import sys
 
 logging.basicConfig(filename='testbench.log',
                     level=logging.DEBUG,
@@ -15,6 +15,13 @@ window_size = 8
 tx_timeout = 4
 
 comm_handler: CommHandler
+
+arg_mode = None
+arg_sendrecv = None
+arg_debug = False
+
+num_packets = 50
+packet_size = 256
 
 
 # Print iterations progress
@@ -42,51 +49,58 @@ def printProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=
 
 
 # ---------------------------------------------- /// PACKET LOSS TEST /// ----------------------------------------------
-packet_loss_data_amount_kb = 10  # Kilobytes
-packet_loss_packet_size = 256  # Bytes
 packet_loss_reliable = False
-packet_loss_num_packets = int(packet_loss_data_amount_kb * 1000 / packet_loss_packet_size)
-
 
 def packet_loss_test():
     print("-------------- Packet Loss Test ---------------")
+    global arg_sendrecv
     while True:
-        user_in = input('"Sender" or "Receiver"? ')
-        if user_in == "Sender":
+        if arg_sendrecv is None:
+            arg_sendrecv = input('"Sender" or "Receiver"? ')
+
+        if arg_sendrecv == "Sender":
             packet_loss_sender()
             break
-        elif user_in == "Receiver":
+        elif arg_sendrecv == "Receiver":
             packet_loss_receiver()
             break
         else:
             print("Unknown input.")
+            arg_sendrecv = None
 
 
 def packet_loss_sender():
     global comm_handler
     print("----- / Packet Loss Test: Sender / -----")
     handshake_packet = Packet(MsgType.HANDSHAKE)
-    test_packet = Packet(MsgType.IMAGE, data=b'A' * packet_loss_packet_size)
+    test_packet = Packet(MsgType.IMAGE, data=b'A' * packet_size)
     stop_packet = Packet(MsgType.TEXT, data=b'STOP')
     comm_handler = CommHandler(tx_timeout=tx_timeout, window_size=window_size, reliable_img=packet_loss_reliable)
 
-    # Handshake
-    print("Connecting to receiver...")
-    comm_handler.send_packet(handshake_packet)
-    comm_handler.start(CommMode.HANDSHAKE)
+    if not arg_debug:
+        # Handshake
+        print("Connecting to sender...")
+        comm_handler.send_packet(handshake_packet)
+        comm_handler.start(CommMode.HANDSHAKE)
+        print("Connection established! Starting test...")
+    else:
+        print("Starting in debug mode...")
+        comm_handler.start(CommMode.DEBUG)
 
-    print("Connection established! Starting test...")
-    printProgressBar(0, packet_loss_num_packets, printEnd='')
+    printProgressBar(0, num_packets, printEnd='')
 
     # Send image packets
-    for i in range(packet_loss_num_packets):
+    for i in range(num_packets):
         test_packet.pid = i
         test_packet.checksum = test_packet.calc_checksum()
         comm_handler.send_packet(test_packet)
-        printProgressBar(i + 1, packet_loss_num_packets, printEnd='')
+        printProgressBar(i + 1, num_packets, printEnd='')
 
     # Send stop packet
     comm_handler.send_packet(stop_packet)
+
+    while comm_handler.tx_base != comm_handler.tx_next_seq_num:
+        pass # wait until sender is done
 
     print('Test complete!')
     print("Check receiver's terminal for results.")
@@ -98,13 +112,16 @@ def packet_loss_receiver():
     print("---- / Packet Loss Test: Receiver / ----")
     comm_handler = CommHandler(tx_timeout=tx_timeout, window_size=window_size, reliable_img=packet_loss_reliable)
 
-    # Handshake
-    print("Connecting to sender...")
-    comm_handler.start(CommMode.HANDSHAKE)
+    if not arg_debug:
+        # Handshake
+        print("Connecting to sender...")
+        comm_handler.start(CommMode.HANDSHAKE)
+        print("Connection established! Starting test...")
+    else:
+        print("Starting in debug mode...")
+        comm_handler.start(CommMode.DEBUG)
 
-    print("Connection established! Starting test...")
-    comm_handler.rx_base = 0
-    printProgressBar(0, latency_num_packets, printEnd='')
+    printProgressBar(0, num_packets, printEnd='')
 
     # Receive and evaluate packets until stop packet
     bad_count = 0
@@ -120,7 +137,7 @@ def packet_loss_receiver():
                 else:
                     good_count += 1
 
-                printProgressBar(good_count + bad_count, packet_loss_num_packets, printEnd='')
+                printProgressBar(good_count + bad_count, num_packets, printEnd='')
             elif in_packet.type == MsgType.TEXT and in_packet.data == b'STOP':
                 break
             else:
@@ -130,7 +147,7 @@ def packet_loss_receiver():
     total_recv = bad_count + good_count
 
     print("Test complete!")
-    print(f"Packets received: {total_recv}/{packet_loss_num_packets}")
+    print(f"Packets received: {total_recv}/{num_packets}")
     if total_recv > 0:
         print(f'Uncorrupted packets: {good_count}')
         print(f"Corrupt packets received by application: {bad_count}, %.2f percent" % ((bad_count / total_recv) * 100))
@@ -138,50 +155,52 @@ def packet_loss_receiver():
 
 
 # ---------------------------------------------- /// THROUGHPUT TEST /// -----------------------------------------------
-throughput_data_amount_kb = 10  # Kilobytes
-throughput_packet_size = 256  # Bytes
-throughput_num_packets = int((1000 * throughput_data_amount_kb) / throughput_packet_size)
-
 
 def throughput_test():
     print("--------------- Throughput Test ---------------")
-    print(f'Total data amount: {throughput_data_amount_kb} KB')
-    print(f'Packet size: {throughput_packet_size} Bytes')
+    global arg_sendrecv
+    print(f'Packet size: {packet_size} Bytes')
+    print(f'Number of packets: {num_packets}')
+    print(f'Total data size: %.2f KB' % (packet_size*num_packets/1000))
     while True:
-        user_in = input('"Sender" or "Receiver"? ')
-        if user_in == "Sender":
+        if arg_sendrecv is None:
+            arg_sendrecv = input('"Sender" or "Receiver"? ')
+
+        if arg_sendrecv == "Sender":
             throughput_sender()
             break
-        elif user_in == "Receiver":
+        elif arg_sendrecv == "Receiver":
             throughput_receiver()
             break
         else:
             print("Unknown input.")
+            arg_sendrecv = None
 
 
 def throughput_sender():
     global comm_handler
     print("----- / Throughput Test: Sender / ------")
     handshake_packet = Packet(MsgType.HANDSHAKE)
-    test_packet = Packet(MsgType.TEXT, data=b'A' * throughput_packet_size)
+    test_packet = Packet(MsgType.TEXT, data=b'A' * packet_size)
     comm_handler = CommHandler(tx_timeout=tx_timeout, window_size=window_size)
 
-    # Handshake
-    print("Connecting to receiver...")
-    comm_handler.send_packet(handshake_packet)
-    comm_handler.start(CommMode.HANDSHAKE)
+    if not arg_debug:
+        # Handshake
+        print("Connecting to sender...")
+        comm_handler.send_packet(handshake_packet)
+        comm_handler.start(CommMode.HANDSHAKE)
+        print("Connection established! Starting test...")
+    else:
+        print("Starting in debug mode...")
+        comm_handler.start(CommMode.DEBUG)
 
-    print("Connection established! Starting test...")
-    printProgressBar(0, throughput_num_packets, printEnd='')
-    start_time = time.time()
-    for i in range(throughput_num_packets):
+    for i in range(num_packets):
         comm_handler.send_packet(test_packet)
 
-    print(f'All packets have been accepted by the sender - check receiver for results.')
-    print(f'Waiting for stop notification from receiver...')
+    while comm_handler.tx_base < num_packets+1:
+        printProgressBar(comm_handler.tx_base, num_packets+1, printEnd='')
 
-    while not comm_handler.recv_flag():
-        pass
+    print(f'All packets have been sent - check receiver for results.')
 
     comm_handler.stop()
 
@@ -191,17 +210,21 @@ def throughput_receiver():
     print("---- / Throughput Test: Receiver / -----")
     comm_handler = CommHandler(tx_timeout=tx_timeout, window_size=window_size)
 
-    # Handshake
-    print("Connecting to sender...")
-    comm_handler.start(CommMode.HANDSHAKE)
+    if not arg_debug:
+        # Handshake
+        print("Connecting to sender...")
+        comm_handler.start(CommMode.HANDSHAKE)
+        print("Connection established! Starting test...")
+    else:
+        print("Starting in debug mode...")
+        comm_handler.start(CommMode.DEBUG)
 
-    print("Connection established! Starting test...")
-    printProgressBar(0, throughput_num_packets, printEnd='')
+    printProgressBar(0, num_packets, printEnd='')
     start_time = time.time()
 
     # Wait until all packets have been received
     recv_packets = 0
-    while recv_packets != throughput_num_packets:
+    while recv_packets != num_packets:
         update = False
         while comm_handler.recv_flag():
             recv_packets += 1
@@ -209,10 +232,10 @@ def throughput_receiver():
             update = True
 
         if update:
-            printProgressBar(recv_packets, throughput_num_packets, printEnd='')
+            printProgressBar(recv_packets, num_packets, printEnd='')
 
     time_elapsed = time.time() - start_time
-    throughput = throughput_data_amount_kb / time_elapsed
+    throughput = num_packets*packet_size / time_elapsed
 
     print(f'Test complete!')
     print(f'Time elapsed: {int(time_elapsed / 60)} min, {int(time_elapsed % 60)} seconds.')
@@ -221,41 +244,45 @@ def throughput_receiver():
 
 
 # ------------------------------------------------ /// LATENCY TEST /// ------------------------------------------------
-latency_num_packets = 20
-latency_packet_size = 32  # Bytes
-
 
 def latency_test():
     print("----------------- Latency Test ----------------")
+    global arg_sendrecv
     while True:
-        user_in = input('"Sender" or "Receiver"? ')
-        if user_in.lower() == "sender":
+        if arg_sendrecv is None:
+            arg_sendrecv = input('"Sender" or "Receiver"? ')
+
+        if arg_sendrecv.lower() == "sender":
             latency_sender()
             break
-        elif user_in.lower() == "receiver":
+        elif arg_sendrecv.lower() == "receiver":
             latency_receiver()
             break
         else:
             print("Unknown input.")
+            arg_sendrecv = None
 
 
 def latency_sender():
     global comm_handler
     print("------- / Latency Test: Sender / -------")
     handshake_packet = Packet(MsgType.HANDSHAKE)
-    test_packet = Packet(MsgType.TEXT, data=b'A' * latency_packet_size)
+    test_packet = Packet(MsgType.TEXT, data=b'A' * packet_size)
     comm_handler = CommHandler(tx_timeout=tx_timeout, window_size=window_size)
 
-    # Handshake
-    print("Connecting to receiver...")
-    comm_handler.send_packet(handshake_packet)
-    comm_handler.start(CommMode.HANDSHAKE)
-
-    print("Connection established! Starting test...")
+    if not arg_debug:
+        # Handshake
+        print("Connecting to sender...")
+        comm_handler.send_packet(handshake_packet)
+        comm_handler.start(CommMode.HANDSHAKE)
+        print("Connection established! Starting test...")
+    else:
+        print("Starting in debug mode...")
+        comm_handler.start(CommMode.DEBUG)
 
     rtt_measurements = []
 
-    for i in range(latency_num_packets):
+    for i in range(num_packets):
         # Send packet and start timer
         print(f'Packet #{i} ', end='')
         start_time = time.time()
@@ -270,10 +297,13 @@ def latency_sender():
         elapsed_time = time.time() - start_time
         rtt_measurements.append(elapsed_time)
 
-        print("<ACKd RTT: %.4f seconds, size %i bytes>" % (elapsed_time, latency_packet_size))
+        print("<ACKd RTT: %.4f seconds, size %i bytes>" % (elapsed_time, packet_size))
 
     total_time = sum(rtt_measurements)
-    avg_RTT = total_time / latency_num_packets
+    avg_RTT = total_time / num_packets
+
+    while comm_handler.tx_base != comm_handler.tx_next_seq_num:
+        pass # wait until sender is done
 
     print(f'Test complete!')
     print(f'Total time: {int(total_time / 60)} min {int(total_time % 60)} sec')
@@ -286,19 +316,26 @@ def latency_receiver():
     print("------ / Latency Test: Receiver / ------")
     comm_handler = CommHandler(tx_timeout=tx_timeout, window_size=window_size)
 
-    # Handshake
-    print("Connecting to sender...")
-    comm_handler.start(CommMode.HANDSHAKE)
+    if not arg_debug:
+        # Handshake
+        print("Connecting to sender...")
+        comm_handler.start(CommMode.HANDSHAKE)
+        print("Connection established! Starting test...")
+    else:
+        print("Starting in debug mode...")
+        comm_handler.start(CommMode.DEBUG)
 
-    print("Connection established! Starting test...")
     # Wait until all packets have been received
     recv_packets = 0
-    while recv_packets != latency_num_packets:
+    while recv_packets != num_packets:
         if comm_handler.recv_flag():
             recv_packets += 1
             echo_request = comm_handler.recv_packet()
             print(f"Packet #{recv_packets} received. Echoing...")
             comm_handler.send_packet(echo_request)
+
+    while comm_handler.tx_base < num_packets+1:
+        pass # wait for echoes to be received
 
     print('Test complete!')
     print("Check sender's terminal for results")
@@ -313,16 +350,19 @@ serial_packet_size = 32  # Bytes
 
 def serial_test():
     print("----------------- Serial Test ----------------")
+    global arg_sendrecv
     while True:
-        user_in = input('"Sender" or "Receiver"? ')
-        if user_in.lower() == "sender":
+        if arg_sendrecv is None:
+            arg_sendrecv = input('"Sender" or "Receiver"? ')
+        if arg_sendrecv.lower() == "sender":
             serial_sender()
             break
-        elif user_in.lower() == "receiver":
+        elif arg_sendrecv.lower() == "receiver":
             serial_receiver()
             break
         else:
             print("Unknown input.")
+            arg_sendrecv = None
 
 
 def serial_sender():
@@ -348,8 +388,9 @@ def serial_sender():
                 b = time.time()
             print(f'Packet #{i + 1} - Serial write time = %.4f seconds' % (b - a))
         end_time = time.time()
-        print(f'Time taken: %.4f seconds. Throughput: %.4f bytes/second' % ((end_time-start_time),
-                                                                            (expected_data_size/(end_time-start_time))))
+        print(f'Time taken: %.4f seconds. Throughput: %.4f bytes/second' % ((end_time - start_time),
+                                                                            (expected_data_size / (
+                                                                                        end_time - start_time))))
 
     except KeyboardInterrupt:
         pass
@@ -394,25 +435,54 @@ def serial_receiver():
             reader.close()
 
 
+# --------------------------------------------------------------------------------------------------------------------
+
+def parse_args():
+    global arg_mode, arg_debug, arg_sendrecv
+    global packet_size, num_packets
+    for i, arg in enumerate(sys.argv):
+        if arg == "-d" or arg == "--debug":
+            arg_debug = True
+        elif arg == "-t" or arg == "--throughput":
+            arg_mode = "Throughput"
+        elif arg == "-l" or arg == "--latency":
+            arg_mode = "Latency"
+        elif arg == "-p" or arg == "--packetloss":
+            arg_mode = "Packet Loss"
+        elif arg == "--serial":
+            arg_mode = "Serial"
+        elif arg == "-s" or arg == "--sender":
+            arg_sendrecv = "Sender"
+        elif arg == "-r" or arg == "--receiver":
+            arg_sendrecv = "Receiver"
+        elif arg == "-n" or arg == "--number":
+            num_packets = int(sys.argv[i+1])
+        elif arg == "--size":
+            packet_size = int(sys.argv[i+1])
+
+
 if __name__ == "__main__":
+    parse_args()
     try:
         while True:
-            user_in = input('Please select which test you would like to run -'
-                            '"Throughput", "Packet Loss", "Serial", or "Latency": ')
-            if user_in == "Throughput":
+            if arg_mode is None:
+                arg_mode = input('Please select which test you would like to run -'
+                                 '"Throughput", "Packet Loss", "Serial", or "Latency": ')
+            if arg_mode == "Throughput":
                 throughput_test()
                 break
-            elif user_in == "Packet Loss":
+            elif arg_mode == "Packet Loss":
                 packet_loss_test()
                 break
-            elif user_in == "Latency":
+            elif arg_mode == "Latency":
                 latency_test()
                 break
-            elif user_in == "Serial":
+            elif arg_mode == "Serial":
                 serial_test()
                 break
             else:
                 print("Unknown input.")
+                arg_mode = None
     except KeyboardInterrupt:
         print("Stopping...")
         comm_handler.stop()

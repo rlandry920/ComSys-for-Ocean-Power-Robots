@@ -5,11 +5,15 @@ from CommSys.SerialHandler import PacketReaderThread
 from threading import Thread, Lock
 import logging
 import time
+import copy
 from enum import Enum
 from queue import Queue
 
-# TODO fix repeat packets appearing in transmission window
-# TODO fix acking items outside of window
+# TODO fix video not appearing on WebGUI
+# TODO improve acking items outside of window
+# TODO add handshake handle when not in handshake mode
+# TODO add dynamic tx_timeout
+# TODO add CACK behavior (low priority atm)
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +94,7 @@ class CommHandler():
             handshake_expire = time.time() + HANDSHAKE_TIMEOUT
             # Incoming handshake will be forwarded to in_queue
             while self.in_queue.empty() and time.time() < handshake_expire:
-                time.sleep(1)
+                pass
 
             if self.in_queue.empty():
                 raise CommSysError(f'Failed to establish connection!')
@@ -163,27 +167,29 @@ class CommHandler():
             self.__write(packet)
 
         else:
+            logger.debug("B " + self.__tx_window_to_str())
             packet.id = self.tx_next_seq_num  # Set packet ID
             packet.checksum = packet.calc_checksum()  # Recalculate packet's checksum w/ new ID
-
-            window_index = (packet.id - self.tx_base) % MAX_ID
-            # Check to ensure that there is room in the window
-            if window_index < 0 or window_index >= self.window_size:
-                raise FlowControlError(f'Cannot add packet to full transmission window! '
-                                       f'Attempted addition: {packet.type} (ID: {packet.id})')
+            logger.debug("C " + self.__tx_window_to_str())
 
             with self.tx_win_lock:
+                window_index = (packet.id - self.tx_base) % MAX_ID
+
+                # Check to ensure that there is room in the window
+                if window_index < 0 or window_index >= self.window_size:
+                    raise FlowControlError(f'Cannot add packet to full transmission window! '
+                                           f'Attempted addition: {packet.type} (ID: {packet.id})')
+
                 if self.tx_window[window_index] is not None:
                     raise FlowControlError(f'Attempting to overwrite an item already in transmission window! '
                                            f'Attempted addition to index {window_index}: {packet.type} (ID: {packet.id})')
-
-                self.tx_window[window_index] = {"packet": packet,
+                self.tx_window[window_index] = {"packet": copy.deepcopy(packet),
                                                 "timestamp": time.time()}
+
             logger.debug(
                 f"Transmitting packet (ID: {packet.id}, MsgType: {packet.type}, Checksum {packet.checksum})")
             self.__write(packet)
             self.tx_next_seq_num = (self.tx_next_seq_num + 1) % MAX_ID
-            logger.debug(self.__tx_window_to_str())
 
     # Add packet to rx_window, handle ack'ing behavior
     def __rx_packet(self, packet: Packet):
@@ -303,6 +309,7 @@ class CommHandler():
                 self.__write(packet)
                 packet_tuple["timestamp"] = t
 
+
     def __read(self):
         if self.comm_mode == CommMode.SATELLITE:
             # TODO Satellite
@@ -325,7 +332,6 @@ class CommHandler():
                 self.__rx_packet(new_packet)
 
     def __write(self, packet: Packet):
-        write_start = time.time()
         if self.comm_mode == CommMode.SATELLITE:
             # TODO Satellite
             pass
@@ -354,7 +360,6 @@ class CommHandler():
                 print(f'Unexpected checksum error. '
                       f'Expected check: {packet.checksum} Calc check: {packet.calc_checksum()}')
                 print(f'Erroneous packet: ({packet.to_binary()})')
-        logger.debug(f'Write time: %.4f seconds' % (time.time() - write_start))
 
     def __acknowledge_tx_pid(self, pid):
         index = (pid - self.tx_base) % MAX_ID
