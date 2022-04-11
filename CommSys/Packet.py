@@ -50,9 +50,13 @@ class MsgType(Enum):
     MTR_CMD = b'\x0A'  # Motor Command
     GPS_CMD = b'\x0B'
     MTR_SWITCH_CMD = b'\x0C'
+    CTRL_REQ = b'\x0D'
+    UDP = b'\x0E'  # UDP datagram to be forwarded
 
-    # Data is an IP datagram to be forwarded (NOT IMPLEMENTED BY RELEASE)
-    IP = b'\x0C'
+    HEARTBEAT_REQ = b'\x10' # Makes a request for a heartbeat from other party
+    HEARTBEAT = b'\x11'     # Basic heartbeat
+
+    COMM_CHANGE = b'\x12'   # Notifies other party of a mode change
 
 
 class Packet:

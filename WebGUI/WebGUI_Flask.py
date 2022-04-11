@@ -131,6 +131,13 @@ def getNumUsers():
 # Some file is trying to access root/Decoder.js instead of the static URL, this is a temporary fix to resolve this
 
 
+@app.route('/reqLiveControl', methods=['POST', 'DELETE'])
+def reqLiveControl():
+    data = request.get_json()[0]
+    enable = data["enable"]
+    return liveControl(enable, app.config['commHandler'])
+
+
 @app.route('/Decoder.js')
 def reroute_js():
     return redirect(url_for('static', filename='script/Decoder.js'))

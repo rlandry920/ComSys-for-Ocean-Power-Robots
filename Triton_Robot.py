@@ -1,76 +1,55 @@
 import logging
+from logging.handlers import RotatingFileHandler
 from SensorLib.CameraHandler import CameraHandler
 from CommSys.CommHandler import CommHandler, CommMode
 from CommSys.Packet import MsgType, Packet
+from CommSys.AROVHandler import AROVHandler
 import picamera
 import struct
-import time
 import ME_Integration.escController as esc
+from systemd.journal import JournaldLogHandler
+import time
 
-logging.basicConfig(filename='robot.log',
-                    level=logging.DEBUG,
-                    format='%(asctime)s | %(funcName)s | %(levelname)s | %(message)s')
+MOTOR_TIMEOUT = 2
 
+motor_ts = 0
+motor_on = False
 
-comm_handler = CommHandler()
+comm_handler = CommHandler(reliable_img=False)
 cam = picamera.PiCamera(resolution='320x240', framerate=5)
 cam_handler = CameraHandler(comm_handler, cam)
+arov = AROVHandler()
 
-LIVE_VIDEO = True
+live_control = False
+
 
 def main():
-    logging.info("Robot starting...")
-    # print("Arming ESCs...")
-    # esc.arm()
-    # print("ESCs armed!")
-    # print("Testing forwards...")
-    # esc.drive_motor(0.3)
-    # time.sleep(2)
-    # print("Testing backwards...")
-    # esc.drive_motor(-0.3)
-    # time.sleep(2)
-    # esc.drive_motor(0)
-    # print("Motors tested!")
+    logger.info("Robot starting...")
+    logger.info("Arming ESCs...")
+    esc.arm()
+    logger.info("ESCs Armed!")
 
     handshake_packet = Packet(ptype=MsgType.HANDSHAKE)
     comm_handler.send_packet(handshake_packet)
-    print("Connecting to landbase...")
+    logger.info("Connecting to landbase...")
     comm_handler.start(CommMode.HANDSHAKE)
-    print("Connection with landbase established!")
-
-    msg1 = b'SYNC'
-    msg2 = b'HELLO_WORLD!'
-    msg3 = b' Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin mattis aliquet nisi at hendrerit. Aenean in' \
-           b'terdum pulvinar nibh, vel molestie metus dapibus sit amet. Donec facilisis egestas eros tempus suscipit. Al' \
-           b'iquam sed lacus enim. Nulla faucibus semper neque at molestie. Donec sit amet tempus dui. In hac habitasse ' \
-           b'platea dictumst. Quisque vulputate auctor lacus, non mattis tellus porta sed. Vestibulum sodales porttitor ' \
-           b'nibh, eget ultrices ligula lacinia nec. Nullam nec eleifend diam, in laoreet nibh.' \
-           b'\n\n' \
-           b'Morbi felis urna, hendrerit a est nec, varius ultrices ex. Proin ultricies erat in sodales malesuada. In po' \
-           b'suere tortor vitae velit cursus vestibulum ac quis enim. Fusce imperdiet lacus eget mauris placerat, et lao' \
-           b'reet nulla dignissim. Nulla sollicitudin diam vitae ante vulputate tempor. Ut bibendum neque ut orci consec' \
-           b'tetur, a finibus felis vulputate. Integer elementum mauris et erat viverra, vestibulum fringilla mauris pel' \
-           b'lentesque. Nullam volutpat a mi at commodo. Morbi metus arcu, euismod sit amet maximus id, semper scelerisq' \
-           b'ue dui. Vivamus scelerisque massa vel ex hendrerit, id aliquet odio ultricies. Nunc fringilla id sapien a m' \
-           b'alesuada. Sed accumsan semper laoreet. Sed pharetra sodales sodales. '
-
-    pkt1 = Packet(MsgType.TEXT, 0, msg1)
-    pkt2 = Packet(MsgType.TEXT, 0, msg2)
-    pkt3 = Packet(MsgType.TEXT, 0, msg3)
-
-    comm_handler.send_packet(pkt1)
-    comm_handler.send_packet(pkt2)
-    comm_handler.send_packet(pkt3)
-
-    cam_handler.start()
+    logger.info("Connection with landbase established!")
 
     try:
         while True:
             digest_packet(comm_handler.recv_packet())
+            check_motors()
+
+            from_arov = arov.recvfrom()
+            if from_arov is not None:
+                logger.info(f'Forwarding UDP message from AROV...')
+                arov_packet = Packet(ptype=MsgType.UDP, data=from_arov[0])
+                comm_handler.send_packet(arov_packet)
+
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        pass
+        logger.critical(str(e))
     finally:
         logging.info("Robot stopping...")
         comm_handler.stop()
@@ -78,18 +57,62 @@ def main():
 
 
 def digest_packet(packet: Packet):
+    global live_control, motor_ts, motor_on
     if packet is None:
         return
     elif packet.type == MsgType.TEXT:
-        print(packet.data.decode('utf-8'))
+        logger.info(f'Received text message: {packet.data.decode("utf-8")}')
+    elif packet.type == MsgType.HEARTBEAT_REQ:
+        logger.info(f'Received heartbeat request')
+        my_ip = arov.get_IP()
+        heartbeat = Packet(MsgType.HEARTBEAT, data=my_ip.encode('utf-8'))
+        comm_handler.send_packet(heartbeat)
     elif packet.type == MsgType.MTR_CMD:
-        print(packet.length)
-        left, right = struct.unpack('2f', packet.data)
-        print(f'Recieved motor cmd (ID: {packet.id} LEFT: {str(left)} RIGHT: {str(right)})')
-        esc.drive_motor(left)
+        left, right = struct.unpack('2f', packet.data[0:8])
+        logger.info(f'Received motor command: LEFT={str(left)} RIGHT={str(right)}')
+        if live_control:
+            motor_on = True
+            motor_ts = time.time()
+            esc.setSpeed(esc.ESC_LEFT, left)
+            esc.setSpeed(esc.ESC_RIGHT, right)
+        else:
+            logger.warning(f"Live control hasn't been enable yet!")
+    elif packet.type == MsgType.CTRL_REQ:
+        enable = (packet.data == b'\x01')
+        if enable and enable != live_control:
+            logger.info("Starting live control.")
+            cam_handler.start()
+        elif not enable and enable != live_control:
+            logger.info("Stopping live control.")
+            cam_handler.stop()
+
+        live_control = enable
     else:
-        print(f'Received packet (ID: {packet.id} of type {packet.type})')
+        logger.info(f'Received packet (ID: {packet.id} of type {packet.type})')
+
+
+def check_motors():
+    global motor_ts, motor_on
+    t = time.time()
+    if motor_on and t - MOTOR_TIMEOUT > motor_ts:
+        esc.setSpeed(esc.ESC_LEFT, 0)
+        esc.setSpeed(esc.ESC_RIGHT, 0)
+        motor_on = False
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    logger = logging.getLogger(__name__)
+
+    log_formatter = logging.Formatter('%(asctime)s %(levelname)s %(funcName)s(%(lineno)d) %(message)s')
+    log_file = '/home/pi/Documents/ComSys-for-Ocean-Power-Robots/robot.log'
+    rotating_handler = RotatingFileHandler(log_file, mode='a', maxBytes=8 * 2048,  # Max 2KB
+                                           backupCount=2, encoding=None, delay=0)
+    rotating_handler.setFormatter(log_formatter)
+    logger.addHandler(rotating_handler)
+
+    journald_handler = JournaldLogHandler()
+    journald_handler.setFormatter(log_formatter)
+    logger.addHandler(journald_handler)
+
     main()

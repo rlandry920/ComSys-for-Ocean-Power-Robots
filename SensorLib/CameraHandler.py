@@ -31,15 +31,18 @@ class CameraHandler:
         self.stopped = True
 
         if type(self.camera) == PiCamera:
-            self.t = Thread(target=self.update_picam, args=())
+            self.target = self.update_picam
         elif type(self.camera) == USBCamera:
-            self.t = Process(target=self.update_usb, args=())
+            self.target = self.update_usb
         else:
             raise TypeError("Unrecognized camera type!")
+
+        self.t = None
 
     def start(self):
         logger.info("CameraHandler starting...")
         self.stopped = False
+        self.t = Thread(target=self.target)
         self.t.start()
 
     def update_picam(self):
@@ -76,6 +79,7 @@ class CameraHandler:
         self.camera.stop()  # Stop camera on close
 
     def stop(self):
-        logger.info("CameraHandler stopping...")
-        self.stopped = True
-        self.t.join()
+        if not self.stopped:
+            logger.info("CameraHandler stopping...")
+            self.stopped = True
+            self.t.join()

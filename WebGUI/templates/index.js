@@ -101,6 +101,21 @@ $(document).ready(function () {
 
     $("#live_control").click(function () {
         liveControl = !liveControl
+        var data = [
+        {
+            "enable": liveControl
+        }
+        ];
+        $.ajax({
+            type: 'POST',
+            url: "{{ url_for("reqLiveControl") }}",
+            data: JSON.stringify(data),
+            contentType: "application/json",
+            dataType: "text",
+            error: function (XMLHttpRequest, textStatus, errorThrown) {
+                addMessage("Live control" + " failed: " + XMLHttpRequest.status + " " + errorThrown, 'r');
+            }
+        });
         checkLiveControl();
     });
 

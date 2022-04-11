@@ -84,3 +84,15 @@ def checkCoordinates(latitude, longitude):
         return "Invalid longitude"
     else:
         return None
+
+
+def liveControl(enable, commHandler):
+    if enable:
+        request_packet = Packet(ptype=MsgType.CTRL_REQ, data=b'\x01')
+        message = "Requesting live control..."
+    else:
+        request_packet = Packet(ptype=MsgType.CTRL_REQ, data=b'\x00')
+        message = "Halting live control..."
+
+    commHandler.send_packet(request_packet)
+    return message

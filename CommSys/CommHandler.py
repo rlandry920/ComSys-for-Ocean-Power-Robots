@@ -9,7 +9,6 @@ import copy
 from enum import Enum
 from queue import Queue
 
-# TODO fix video not appearing on WebGUI
 # TODO improve acking items outside of window
 # TODO add handshake handle when not in handshake mode
 # TODO add dynamic tx_timeout
@@ -17,7 +16,7 @@ from queue import Queue
 
 logger = logging.getLogger(__name__)
 
-HANDSHAKE_TIMEOUT = 60
+HANDSHAKE_TIMEOUT = 3600  # 1 hr expiration time
 TX_TIMEOUT = 2.5
 RX_CACK_DELAY = 0.100
 WINDOW_SIZE = 8
@@ -65,8 +64,8 @@ class CommHandler():
         self.satellite = None
 
         # Threading members
-        self.t_in = Thread(target=self.__update_ingress)
-        self.t_out = Thread(target=self.__update_egress)
+        self.t_in = None
+        self.t_out = None
         self.stopped = True
 
         self.comm_mode = None
@@ -86,9 +85,13 @@ class CommHandler():
         return not self.in_queue.empty()
 
     def start(self, mode=CommMode.HANDSHAKE):
-        self.comm_mode = mode
-        self.run()
+        if not self.stopped:
+            return  # already started
 
+        self.comm_mode = mode
+        self.t_in = Thread(target=self.__update_ingress)
+        self.t_out = Thread(target=self.__update_egress)
+        self.run()
         if mode == CommMode.HANDSHAKE:
             # If in handshake mode, try to establish connection within timeout period
             handshake_expire = time.time() + HANDSHAKE_TIMEOUT
@@ -112,10 +115,11 @@ class CommHandler():
     def stop(self):
         if not self.stopped:
             self.stopped = True
-        self.t_in.join()
-        self.t_out.join()
-        if self.comm_mode == CommMode.HANDSHAKE or self.comm_mode == CommMode.RADIO:
-            self.radio.close()
+            self.t_in.join()
+            self.t_out.join()
+
+            if self.comm_mode == CommMode.HANDSHAKE or self.comm_mode == CommMode.RADIO:
+                self.radio.close()
         logger.info("CommHandler closed.")
 
     def change_mode(self, mode: CommMode):
@@ -161,16 +165,19 @@ class CommHandler():
 
     # Add packet to tx_window and increment sequence number
     def __tx_packet(self, packet: Packet):
+        # Only accept handshake packets while in handshake mode
+        if self.comm_mode == CommMode.HANDSHAKE and packet.type != MsgType.HANDSHAKE:
+            logger.debug(f'Dropping non-handshake packet while in handshake mode')
+            return
+
         if not self.reliable_img and packet.type == MsgType.IMAGE:
             # Send image packet unreliably
             logger.debug(f"Transmitting unreliable image (Length: {packet.length} Bytes)")
             self.__write(packet)
 
         else:
-            logger.debug("B " + self.__tx_window_to_str())
             packet.id = self.tx_next_seq_num  # Set packet ID
             packet.checksum = packet.calc_checksum()  # Recalculate packet's checksum w/ new ID
-            logger.debug("C " + self.__tx_window_to_str())
 
             with self.tx_win_lock:
                 window_index = (packet.id - self.tx_base) % MAX_ID
@@ -206,8 +213,7 @@ class CommHandler():
 
         # Check if handshake was received
         if packet.type == MsgType.HANDSHAKE:
-            # TODO handle case where handshake is received when already doing normal operation
-            return
+            self.__recv_handshake(packet)
 
         # Deliver image packets directly, if applicable
         elif not self.reliable_img and packet.type == MsgType.IMAGE:
@@ -244,8 +250,8 @@ class CommHandler():
 
         else:
             # Received packet outside of reception window, send duplicate ack if within past 20 packets
-            # TODO 20 is arbitrary - fix?
-            if (packet.id - self.rx_base) % MAX_ID > -20:
+            # TODO 10 is arbitrary - fix?
+            if (packet.id - self.rx_base) % MAX_ID > -10:
                 logger.debug(f"Packet received (ID: {packet.id}) outside expected window,"
                              f" but within it's reason - acknowledging")
                 self.__send_ack(packet.id, MsgType.DACK)
@@ -277,13 +283,17 @@ class CommHandler():
         ack_packet = Packet(ptype=ack_type, pid=pid)
         self.__write(ack_packet)
 
-    def __recv_handshake(self, packet: Packet, comm_mode: CommMode):
+    def __recv_handshake(self, packet: Packet, comm_mode: CommMode = None):
+        if comm_mode is None:
+            comm_mode=self.comm_mode
+
         if packet.type == MsgType.HANDSHAKE:
             logger.debug(f'Received handshake over {comm_mode}')
             self.__send_ack(packet.id, ack_type=MsgType.SACK)
             self.change_mode(comm_mode)
             self.in_queue.put(packet)  # Put handshake in in_queue so app knows connection was made
             # Update transmission bases to sync w/ client
+            self.__reset_windows()
             self.tx_base = packet.id
             self.rx_base = (packet.id + 1 % MAX_ID)
         elif packet.type == MsgType.SACK or packet.type == MsgType.DACK or packet.type == MsgType.CACK:
@@ -404,6 +414,10 @@ class CommHandler():
         to_deliver = list(filter(lambda x: type(x) == Packet, to_deliver))  # Filter needed in case of "DEL" placeholder
         for item in to_deliver:
             self.in_queue.put(item)
+
+    def __reset_windows(self):
+        self.tx_window = [None]*self.window_size
+        self.rx_window = [None]*self.window_size
 
     def __tx_window_to_str(self):
         list_str = ''
