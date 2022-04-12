@@ -2,7 +2,7 @@ import queue
 
 from CommSys.Packet import Packet, MsgType, NUM_ID_BYTES, SYNC_WORD, MIN_PACKET_SIZE, PacketError
 from CommSys.SerialHandler import PacketReaderThread
-from CommSys import EmailHandler
+from CommSys.EmailHandler import EmailHandler
 from threading import Thread, Lock
 import logging
 import time
@@ -164,8 +164,7 @@ class CommHandler():
                 except FlowControlError as e:
                     logger.warning(str(e))
         logger.debug("Update egress thread exiting.")
-        # Cleanup transmission window upon exiting
-        self.__shift_tx_window(self.window_size)
+        self.__shift_tx_window(self.window_size)  # Cleanup transmission window upon exiting
 
     def __update_ingress(self):
         logger.debug("Update ingress thread started.")
@@ -180,20 +179,17 @@ class CommHandler():
     def __tx_packet(self, packet: Packet):
         # Only accept handshake packets while in handshake mode
         if self.comm_mode == CommMode.HANDSHAKE and packet.type != MsgType.HANDSHAKE:
-            logger.debug(
-                f'Dropping non-handshake packet while in handshake mode')
+            logger.debug(f'Dropping non-handshake packet while in handshake mode')
             return
 
         if not self.reliable_img and packet.type == MsgType.IMAGE:
             # Send image packet unreliably
-            logger.debug(
-                f"Transmitting unreliable image (Length: {packet.length} Bytes)")
+            logger.debug(f"Transmitting unreliable image (Length: {packet.length} Bytes)")
             self.__write(packet)
 
         else:
             packet.id = self.tx_next_seq_num  # Set packet ID
-            # Recalculate packet's checksum w/ new ID
-            packet.checksum = packet.calc_checksum()
+            packet.checksum = packet.calc_checksum()  # Recalculate packet's checksum w/ new ID
 
             with self.tx_win_lock:
                 window_index = (packet.id - self.tx_base) % MAX_ID
@@ -218,14 +214,12 @@ class CommHandler():
     def __rx_packet(self, packet: Packet):
         # Ensure checksum matches expectation
         if packet.checksum != packet.calc_checksum():
-            logger.debug(
-                f"Dropped packet (ID: {packet.id}) due to invalid checksum.")
+            logger.debug(f"Dropped packet (ID: {packet.id}) due to invalid checksum.")
             return  # Drop packet
 
         # Check if received packet was an ACK packet
         if packet.type == MsgType.SACK or packet.type == MsgType.CACK or packet.type == MsgType.DACK:
-            logger.debug(
-                f"Received acknowledgement (ID: {packet.id} Type: {packet.type})")
+            logger.debug(f"Received acknowledgement (ID: {packet.id} Type: {packet.type})")
             self.__handle_ack(packet)
             return
 
@@ -243,8 +237,7 @@ class CommHandler():
         # Non-RDT Related Packets
         if packet.id == self.rx_base:
             # Packet is in-order, deliver directly to application alongside any packets waiting in buffer
-            logger.debug(
-                f"Received packet (ID: {packet.id} Type: {packet.type})")
+            logger.debug(f"Received packet (ID: {packet.id} Type: {packet.type})")
             self.rx_window[0] = packet
             self.__deliver_rx_window()
             # Cumulative ACK handler
@@ -298,21 +291,19 @@ class CommHandler():
         logger.debug(self.__tx_window_to_str())
 
     def __send_ack(self, pid, ack_type=MsgType.SACK):
-        logger.debug(
-            f"Sending acknowledgement for packet (ID: {pid}) with {ack_type}.")
+        logger.debug(f"Sending acknowledgement for packet (ID: {pid}) with {ack_type}.")
         ack_packet = Packet(ptype=ack_type, pid=pid)
         self.__write(ack_packet)
 
     def __recv_handshake(self, packet: Packet, comm_mode: CommMode = None):
         if comm_mode is None:
-            comm_mode = self.comm_mode
+            comm_mode=self.comm_mode
 
         if packet.type == MsgType.HANDSHAKE:
             logger.debug(f'Received handshake over {comm_mode}')
             self.__send_ack(packet.id, ack_type=MsgType.SACK)
             self.change_mode(comm_mode)
-            # Put handshake in in_queue so app knows connection was made
-            self.in_queue.put(packet)
+            self.in_queue.put(packet)  # Put handshake in in_queue so app knows connection was made
             # Update transmission bases to sync w/ client
             self.__reset_windows()
             self.tx_base = packet.id
@@ -320,12 +311,10 @@ class CommHandler():
         elif packet.type == MsgType.SACK or packet.type == MsgType.DACK or packet.type == MsgType.CACK:
             try:
                 self.__acknowledge_tx_pid(packet.id)
-                logger.debug(
-                    f'Received acknowledgement over {comm_mode} for handshake (ID: {packet.id})')
+                logger.debug(f'Received acknowledgement over {comm_mode} for handshake (ID: {packet.id})')
                 self.change_mode(comm_mode)
                 dummy_handshake = Packet(MsgType.HANDSHAKE, pid=packet.id)
-                # Put handshake in in_queue so app knows connection was made
-                self.in_queue.put(dummy_handshake)
+                self.in_queue.put(dummy_handshake)  # Put handshake in in_queue so app knows connection was made
             except FlowControlError:
                 logger.debug(f'Received acknowledgement over {comm_mode} for handshake (ID: {packet.id})'
                              f', but ID was incorrect.')
@@ -334,13 +323,14 @@ class CommHandler():
         t = time.time()
         with self.tx_win_lock:
             expired_packets = list(filter(lambda x: x is not None
-                                          and type(x) != str
-                                          and (t - x["timestamp"]) > self.tx_timeout, self.tx_window))
+                                                    and type(x) != str
+                                                    and (t - x["timestamp"]) > self.tx_timeout, self.tx_window))
             for packet_tuple in expired_packets:
                 packet = packet_tuple["packet"]
                 logger.debug(f"Retransmitting packet (ID: {packet.id}).")
                 self.__write(packet)
                 packet_tuple["timestamp"] = t
+
 
     def __read(self):
         if self.comm_mode == CommMode.SATELLITE:
@@ -360,8 +350,7 @@ class CommHandler():
         elif self.comm_mode == CommMode.DEBUG:
             new_packet = read_debug_string()
             if new_packet is not None:
-                print(
-                    f'----Received packet {new_packet.id}, {new_packet.type}: {new_packet.data[0:32]}', end='')
+                print(f'----Received packet {new_packet.id}, {new_packet.type}: {new_packet.data[0:32]}', end='')
                 self.__rx_packet(new_packet)
 
     def __write(self, packet: Packet):
@@ -379,8 +368,7 @@ class CommHandler():
 
         elif self.comm_mode == CommMode.DEBUG:
             # Debug
-            print(
-                f'----Writing packet {packet.id}, {packet.type}: {packet.data[0:32]}', end='')
+            print(f'----Writing packet {packet.id}, {packet.type}: {packet.data[0:32]}', end='')
             if packet.length > 32:
                 print('...')
             else:
@@ -403,33 +391,27 @@ class CommHandler():
                                    f'Expected IDs {self.tx_base}-{self.tx_next_seq_num}')
 
         if self.tx_window[index] == "ACK":
-            raise FlowControlError(
-                f'Attempted to acknowledge own already ack\'d packet (ID: {self.tx_base + index}).')
+            raise FlowControlError(f'Attempted to acknowledge own already ack\'d packet (ID: {self.tx_base + index}).')
 
         if self.tx_window[index] is None:
-            raise FlowControlError(
-                f'Attempted to acknowledge own unsent packet ({self.tx_base + index}).')
+            raise FlowControlError(f'Attempted to acknowledge own unsent packet ({self.tx_base + index}).')
 
-        logger.debug(
-            f"Marking own packet (ID: {self.tx_base + index}) as acknowledged.")
+        logger.debug(f"Marking own packet (ID: {self.tx_base + index}) as acknowledged.")
         with self.tx_win_lock:
             # Replace with ACK
             self.tx_window[index] = "ACK"
 
     # Performs a zero-shift left 'amount' times on the tx_window
     def __shift_tx_window(self, amount):
-        # Places a ceiling on how much the window can shift
-        shift_amount = min(self.window_size, amount)
+        shift_amount = min(self.window_size, amount)  # Places a ceiling on how much the window can shift
 
         with self.tx_win_lock:
             self.tx_base = (self.tx_base + shift_amount) % MAX_ID
-            self.tx_window = self.tx_window[shift_amount:] + \
-                [None] * shift_amount
+            self.tx_window = self.tx_window[shift_amount:] + [None] * shift_amount
 
     # Delivers in-order packets to application and increments rx_base accordingly
     def __deliver_rx_window(self):
-        none_index = self.rx_window.index(
-            None) if None in self.rx_window else -1
+        none_index = self.rx_window.index(None) if None in self.rx_window else -1
         if none_index >= 0:
             # Deliver up to none_index
             to_deliver = self.rx_window[0:none_index]
@@ -441,8 +423,7 @@ class CommHandler():
             self.rx_window = [None] * self.window_size
             self.rx_base = (self.rx_base + self.window_size) % MAX_ID
 
-        # Filter needed in case of "DEL" placeholder
-        to_deliver = list(filter(lambda x: type(x) == Packet, to_deliver))
+        to_deliver = list(filter(lambda x: type(x) == Packet, to_deliver))  # Filter needed in case of "DEL" placeholder
         for item in to_deliver:
             self.in_queue.put(item)
 
