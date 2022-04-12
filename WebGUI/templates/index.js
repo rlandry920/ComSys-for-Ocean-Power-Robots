@@ -17,6 +17,7 @@ $(document).ready(function () {
     addMessage("Log:", "b")
     initMap();
     checkLiveControl();
+    sendOpenWindow();
     sendGetNumUsers();
 
     var refreshInterval = setInterval(refresh, refreshTime);
@@ -102,9 +103,9 @@ $(document).ready(function () {
     $("#live_control").click(function () {
         liveControl = !liveControl
         var data = [
-        {
-            "enable": liveControl
-        }
+            {
+                "enable": liveControl
+            }
         ];
         $.ajax({
             type: 'POST',
@@ -213,6 +214,7 @@ $(document).ready(function () {
 
         if (key == 39 || key == 37 || key == 38 || key == 40) {
             sendMoveCommand("stop")
+            moving = "stop"
             addMessage("Stop command sent", "s")
             pressedKey = -1
         }
@@ -330,6 +332,20 @@ function placeMarker(location) {
     }
     map.fitBounds(bounds);
 }
+
+function sendOpenWindow() {
+    console.log("SENDING OPEN WINDOW")
+    $.ajax({
+        type: 'POST',
+        url: "{{ url_for("openWindow") }}",
+        contentType: "application/json",
+        dataType: "text",
+        success: function () {
+            sendGetNumUsers();
+        }
+    });
+}
+
 
 function sendGetNumUsers() {
     $.ajax({
