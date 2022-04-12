@@ -41,7 +41,7 @@ websocketCamera.initialize_websockets_manager()
 def main():
     logger.info("Landbase starting...")
     print("Connecting to robot...")
-    comm_handler.start(mode=CommMode.HANDSHAKE)
+    comm_handler.start(mode=CommMode.SATELLITE)
     print("Connected!")
     webgui_msg("Connected to robot!")
 
@@ -58,7 +58,7 @@ def main():
     long = -80.4234
     try:
         while True:
-            req_heartbeat()
+            # req_heartbeat()
             if comm_handler.recv_flag():
                 packet = comm_handler.recv_packet()
                 digest_packet(packet)

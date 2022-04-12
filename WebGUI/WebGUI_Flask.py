@@ -24,6 +24,11 @@ activeUsers = 0
 
 @app.route('/')
 def index():
+    return render_template('index.html')
+
+
+@app.route('/')
+def openWindow():
     global activeUsers
     activeUsers += 1
     msg = {
@@ -31,8 +36,7 @@ def index():
         "num-users": activeUsers
     }
     app.config['websocketData'].manager.broadcast(json.dumps(msg))
-    print("WINDOW OPENED")
-    return render_template('index.html')
+    return "WINDOW OPENED"
 
 
 @app.route('/script.js')
