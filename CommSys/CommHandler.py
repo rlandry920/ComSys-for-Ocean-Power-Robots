@@ -34,7 +34,7 @@ class CommMode(Enum):
 
 class CommHandler():
     def __init__(self, window_size=WINDOW_SIZE, reliable_img=True, ordered_delivery=True,
-                 tx_timeout=TX_TIMEOUT, handshake_timeout=HANDSHAKE_TIMEOUT):
+                 tx_timeout=TX_TIMEOUT, handshake_timeout=HANDSHAKE_TIMEOUT, landbase=True):
         super(CommHandler, self).__init__()
         # Configuration
         self.window_size = window_size
@@ -61,7 +61,10 @@ class CommHandler():
         self.radio = PacketReaderThread()
 
         # Satellite Members
-        self.satellite = None
+        if landbase:
+            self.satellite = EmailHandler()
+        else:
+            self.satellite = RockBlockHandler()
 
         # Threading members
         self.t_in = None

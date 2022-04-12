@@ -40,6 +40,7 @@ class SerialPacketProtocol(serial.threaded.Protocol):
         self.received_packets = []
         self.received_packets_l = Lock()
         self.transport = None
+        self.reliable_medium = False
 
     def connection_made(self, transport):
         self.transport = transport
