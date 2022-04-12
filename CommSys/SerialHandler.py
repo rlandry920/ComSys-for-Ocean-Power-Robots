@@ -3,27 +3,30 @@ from serial.threaded import ReaderThread
 import time
 import logging
 from threading import Lock
+from CommSys.CommHandler import CommMode
 from CommSys.Packet import Packet, SYNC_WORD, MIN_PACKET_SIZE, PacketError
 
 SER_DEVICE = "/dev/ttyAMA0"
 BAUD = 115200
 RTSCTS = False
+RADIO_TX_TIMEOUT = 2.5
+
 
 logger = logging.getLogger(__name__)
 
 
-class PacketReaderThread(ReaderThread):
+class SerialHandler(ReaderThread):
     def __init__(self):
         self.ser = serial.Serial(SER_DEVICE, baudrate=BAUD)
-        super(PacketReaderThread, self).__init__(self.ser, SerialPacketProtocol)
+        super(SerialHandler, self).__init__(self.ser, SerialPacketProtocol)
     
     def start(self):
         if not self.is_alive():
-            super(PacketReaderThread, self).start()
+            super(SerialHandler, self).start()
     
     def close(self):
         if self.is_alive():
-            super(PacketReaderThread, self).close()
+            super(SerialHandler, self).close()
     
     def write_packet(self, packet):
         if self.is_alive():
@@ -62,7 +65,7 @@ class SerialPacketProtocol(serial.threaded.Protocol):
 
         # Try to make a packet from read_buf
         try:
-            packet = Packet(data=self.read_buf)
+            packet = Packet(data=self.read_buf, cmode=CommMode.RADIO)
             if packet.checksum == packet.calc_checksum():
                 # Valid packet was created
                 logger.debug(f"SerialHandler found valid packet (ID: {packet.id} Type: {packet.type}).")

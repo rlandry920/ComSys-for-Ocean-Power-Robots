@@ -15,7 +15,7 @@ MOTOR_TIMEOUT = 2
 motor_ts = 0
 motor_on = False
 
-comm_handler = CommHandler(reliable_img=False)
+comm_handler = CommHandler(landbase=False)
 cam = picamera.PiCamera(resolution='320x240', framerate=5)
 cam_handler = CameraHandler(comm_handler, cam)
 arov = AROVHandler()
@@ -29,8 +29,6 @@ def main():
     esc.arm()
     logger.info("ESCs Armed!")
 
-    handshake_packet = Packet(ptype=MsgType.HANDSHAKE)
-    comm_handler.send_packet(handshake_packet)
     logger.info("Connecting to landbase...")
     comm_handler.start(CommMode.HANDSHAKE)
     logger.info("Connection with landbase established!")

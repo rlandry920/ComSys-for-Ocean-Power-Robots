@@ -15,7 +15,7 @@ from WebGUI.WebGUI_Flask import app
 HEARTBEAT_TIMER = 15
 
 fps = FPS()
-comm_handler = CommHandler(reliable_img=False)
+comm_handler = CommHandler(landbase=True)
 app.config['commHandler'] = comm_handler
 heartbeat_ts = 0
 heartbeat_sent = False

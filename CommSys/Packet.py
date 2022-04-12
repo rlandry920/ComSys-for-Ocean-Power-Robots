@@ -1,6 +1,7 @@
 from enum import Enum
 import numpy as np
 import struct
+from CommSys.CommHandler import CommMode
 
 value = 5.13482358
 value2 = 6512.65165
@@ -37,30 +38,31 @@ class PacketError(Exception):
 class MsgType(Enum):
     NULL = b'\x00'
     HANDSHAKE = b'\x01'  # Starts flow-control based communication
-    SACK = b'\x02'  # Selective Ack
-    CACK = b'\x03'  # Cumulative Ack
-    DACK = b'\x04'  # Duplicate Ack
+    HANDSHAKE_RESPONSE = b'\x02'  # Confirms connection
+    SACK = b'\x03'  # Selective Ack
+    CACK = b'\x04'  # Cumulative Ack
+    DACK = b'\x05'  # Duplicate Ack
 
-    TEXT = b'\x05'  # General text to deliver to applications
-    INFO = b'\x06'  # General information about robot, used for logging
-    ERROR = b'\x07'  # Critical error information
+    TEXT = b'\x06'  # General text to deliver to applications
+    INFO = b'\x07'  # General information about robot, used for logging
+    ERROR = b'\x08'  # Critical error information
 
-    GPS_DATA = b'\x08'  # GPS + Magnetometer Data (from robot to land base)
-    IMAGE = b'\x09'
-    MTR_CMD = b'\x0A'  # Motor Command
-    GPS_CMD = b'\x0B'
-    MTR_SWITCH_CMD = b'\x0C'
-    CTRL_REQ = b'\x0D'
-    UDP = b'\x0E'  # UDP datagram to be forwarded
+    GPS_DATA = b'\x09'  # GPS + Magnetometer Data (from robot to land base)
+    IMAGE = b'\x0A'
+    MTR_CMD = b'\x0B'  # Motor Command
+    GPS_CMD = b'\x0C'
+    MTR_SWITCH_CMD = b'\x0D'
+    CTRL_REQ = b'\x0E'
+    UDP = b'\x0F'  # UDP datagram to be forwarded
 
     HEARTBEAT_REQ = b'\x10' # Makes a request for a heartbeat from other party
-    HEARTBEAT = b'\x11'     # Basic heartbeat
+    HEARTBEAT = b'\x11'     # Basic heartbe
 
-    COMM_CHANGE = b'\x12'   # Notifies other party of a mode change
+    COMM_CHANGE = b'\x12'   # Notifies other party of a mode change, FORCES change, unlike handshakes
 
 
 class Packet:
-    def __init__(self, ptype: MsgType = MsgType.NULL, pid=0, data: bytes = b'', calc_cksm=False):
+    def __init__(self, ptype: MsgType = MsgType.NULL, pid=0, data: bytes = b'', calc_checksum=False, cmode:CommMode=None):
         # Parameterized Constructor
         if ptype != MsgType.NULL:
             # Check data length to ensure it is < 2^16
@@ -75,6 +77,8 @@ class Packet:
             self.data = data
             if calc_checksum:
                 self.checksum = self.calc_checksum()
+            self.cmode = cmode # Used by CommHandler to a. force tx of packet across medium or b. indicate which medium
+                               # packet was rx'd through.
 
         # From-Binary Constructor
         elif len(data) >= MIN_PACKET_SIZE:

@@ -312,7 +312,7 @@ class rockBlock(object):
                 
         if( len(msg) > 340):
                
-            print "sendMessageWithBytes bytes should be <= 340 bytes"
+            print("sendMessageWithBytes bytes should be <= 340 bytes")
             
             return False
         
@@ -533,7 +533,7 @@ class rockBlock(object):
                         
             if(SIGNAL_ATTEMPTS == 0 or signal < 0):
                 
-                print  "NO SIGNAL"
+                print("NO SIGNAL")
                                 
                 if(self.callback != None and callable(self.callback.rockBlockSignalFail) ): 
                     self.callback.rockBlockSignalFail()
@@ -564,7 +564,7 @@ class rockBlock(object):
           
         if( response == "OK" ):
         
-            print "No message content.. strange!"
+            print("No message content.. strange!")
             
             if(self.callback != None and callable(self.callback.rockBlockRxReceived) ): 
                 self.callback.rockBlockRxReceived(mtMsn, "")
