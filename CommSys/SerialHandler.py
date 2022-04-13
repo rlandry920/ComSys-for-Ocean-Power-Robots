@@ -3,7 +3,7 @@ from serial.threaded import ReaderThread
 import time
 import logging
 from threading import Lock
-from CommSys.CommHandler import CommMode
+from CommSys.CommMode import CommMode
 from CommSys.Packet import Packet, SYNC_WORD, MIN_PACKET_SIZE, PacketError
 
 SER_DEVICE = "/dev/ttyAMA0"
@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class SerialHandler(ReaderThread):
     def __init__(self):
+        self.reliable = False
         self.ser = serial.Serial(SER_DEVICE, baudrate=BAUD)
         super(SerialHandler, self).__init__(self.ser, SerialPacketProtocol)
     

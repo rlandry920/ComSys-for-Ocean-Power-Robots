@@ -1,5 +1,5 @@
 import queue
-
+from CommSys.CommMode import CommMode
 from CommSys.Packet import Packet, MsgType, NUM_ID_BYTES, SYNC_WORD, MIN_PACKET_SIZE, PacketError
 from CommSys.SerialHandler import SerialHandler, RADIO_TX_TIMEOUT
 from CommSys import EmailHandler
@@ -30,13 +30,6 @@ password = "durham365"
 
 ALLOWED_SAT_MSG_TYPES = [MsgType.HANDSHAKE, MsgType.HANDSHAKE_RESPONSE, MsgType.TEXT, MsgType.INFO, MsgType.ERROR,
                          MsgType.GPS_DATA, MsgType.GPS_CMD, MsgType.HEARTBEAT_REQ, MsgType.HEARTBEAT, MsgType.COMM_CHANGE]
-
-class CommMode(Enum):
-    HANDSHAKE = 0,
-    RADIO = 1,
-    SATELLITE = 2,
-    DEBUG = 3
-
 
 class CommHandler():
     def __init__(self, window_size=WINDOW_SIZE, ordered_delivery=True, handshake_timeout=HANDSHAKE_TIMEOUT,
@@ -72,10 +65,14 @@ class CommHandler():
         self.radio = SerialHandler()
 
         # Satellite Members
-        if landbase:
-            self.satellite = EmailHandler(username, password)
-        else:
-            self.satellite = RockBlockHandler()
+        # if landbase:
+        #     self.satellite = EmailHandler(username, password)
+        # else:
+        #     self.satellite = RockBlockHandler()
+        self.satellite = dummySatDevice() # DEBUG
+
+        self.comm_dict = {CommMode.RADIO: self.radio,
+                          CommMode.SATELLITE: self.satellite}
 
         # Threading members
         self.t_in = None
@@ -86,6 +83,7 @@ class CommHandler():
 
     # Add packet to outgoing queue
     def send_packet(self, packet: Packet):
+        # TODO expand bad context conditions
         if packet.cmode is None:
             packet.cmode = self.comm_mode
 
@@ -113,6 +111,10 @@ class CommHandler():
         self.comm_mode = mode
         self.t_in = Thread(target=self.__update_ingress)
         self.t_out = Thread(target=self.__update_egress)
+
+        self.radio.start()
+        self.satellite.start()
+
         self.run()
         if mode == CommMode.HANDSHAKE:
             if not self.landbase:
@@ -135,7 +137,6 @@ class CommHandler():
     def run(self):
         logger.info("CommHandler starting.")
         self.stopped = False
-        self.change_mode(self.comm_mode)  # Used to start up radio
         self.t_in.start()
         self.t_out.start()
 
@@ -144,27 +145,42 @@ class CommHandler():
             self.stopped = True
             self.t_in.join()
             self.t_out.join()
+            self.radio.close()
+            self.satellite.close()
 
-            if self.comm_mode == CommMode.HANDSHAKE or self.comm_mode == CommMode.RADIO:
-                self.radio.close()
         logger.info("CommHandler closed.")
-
-    def change_mode(self, mode: CommMode):
-        self.comm_mode = mode
 
     def __update_egress(self):
         logger.debug("Update egress thread started.")
         while not self.stopped:
             self.__resend_expired_packets()
-            if (self.tx_next_seq_num - self.tx_base) % MAX_ID < self.window_size:
-                # Packet waiting in out_queue and available slot in tx_window, pop packet from queue and transmit
-                try:
-                    send_packet = self.out_queue.get(False)
-                    self.__tx_packet(send_packet)
-                except queue.Empty:
-                    continue
-                except FlowControlError as e:
-                    logger.warning(str(e))
+
+            try:
+                send_packet = self.out_queue.get(False)
+            except queue.Empty:
+                continue
+
+            logger.debug(f"send_packet: {send_packet.type} {send_packet.cmode}")
+            if self.comm_dict[send_packet.cmode].reliable or \
+                (send_packet.type == MsgType.IMAGE and not self.reliable_img) or \
+                (send_packet.type == MsgType.MTR_CMD and not self.reliable_mtr_cmd):
+                self.__tx_simple(send_packet)
+            else:
+                if (self.tx_next_seq_num - self.tx_base) % MAX_ID < self.window_size:
+                    # Slot available in tx_window, add packet
+                    try:
+                        self.__tx_rdt(send_packet)
+                    except FlowControlError as e:
+                        logger.warning(str(e))
+                else:
+                    # No available space in tx_window - re-add packet to out_queue w/ warning
+                    try:
+                        self.out_queue.put_nowait(send_packet)
+                        logger.warning("No room in tx window. Moved packet to back of queue.")
+                    except queue.Full:
+                        logger.warning("No room in tx window. Dropped packet because queue was full!")
+
+
         logger.debug("Update egress thread exiting.")
         # Cleanup transmission window upon exiting
         self.__shift_tx_window(self.window_size)
@@ -178,47 +194,48 @@ class CommHandler():
                 logger.warning(str(e))
         logger.debug("Update ingress thread exiting.")
 
+    # Send packet to link-layer classes w/o RDT handling
+    def __tx_simple(self, packet:Packet):
+        packet.checksum = packet.calc_checksum()
+        logger.debug(f"Simple transmission of packet (Type: {packet.type})")
+        self.__write(packet)
+
     # Add packet to tx_window and increment sequence number
-    def __tx_packet(self, packet: Packet):
-        # Only accept handshake packets while in handshake mode
-        if self.comm_mode == CommMode.HANDSHAKE and packet.type != MsgType.HANDSHAKE:
+    def __tx_rdt(self, packet: Packet):
+        packet.id = self.tx_next_seq_num  # Set packet ID
+        # Recalculate packet's checksum w/ new ID
+        packet.checksum = packet.calc_checksum()
+
+        with self.tx_win_lock:
+            window_index = (packet.id - self.tx_base) % MAX_ID
+
+            # Check to ensure that there is room in the window
+            if window_index < 0 or window_index >= self.window_size:
+                raise FlowControlError(f'Cannot add packet to full transmission window! '
+                                       f'Attempted addition: {packet.type} (ID: {packet.id})')
+
+            if self.tx_window[window_index] is not None:
+                raise FlowControlError(f'Attempting to overwrite an item already in transmission window! '
+                                       f'Attempted addition to index {window_index}: {packet.type} (ID: {packet.id})')
+            self.tx_window[window_index] = {"packet": copy.deepcopy(packet),
+                                            "timestamp": time.time()}
+
+        logger.debug(
+            f"Transmitting packet (ID: {packet.id}, MsgType: {packet.type}, Checksum {packet.checksum})")
+        self.__write(packet)
+        self.tx_next_seq_num = (self.tx_next_seq_num + 1) % MAX_ID
+
+    def __rx_simple(self, packet:Packet):
+        # Ensure checksum and deliver directly to application
+        if packet.checksum != packet.calc_checksum():
             logger.debug(
-                f'Dropping non-handshake packet while in handshake mode')
-            return
+                f"Dropped packet (Type: {packet.type}) due to invalid checksum.")
+            return  # Drop packet
 
-        if (not self.reliable_img and packet.type == MsgType.IMAGE) \
-                or (not self.reliable_mtr_cmd and packet.type == MsgType.MTR_CMD):
-            # Send packet unreliably
-            logger.debug(
-                f"Transmitting unreliable packet (MsgType: {packet.type} Length: {packet.length})")
-            self.__write(packet)
-
-        else:
-            packet.id = self.tx_next_seq_num  # Set packet ID
-            # Recalculate packet's checksum w/ new ID
-            packet.checksum = packet.calc_checksum()
-
-            with self.tx_win_lock:
-                window_index = (packet.id - self.tx_base) % MAX_ID
-
-                # Check to ensure that there is room in the window
-                if window_index < 0 or window_index >= self.window_size:
-                    raise FlowControlError(f'Cannot add packet to full transmission window! '
-                                           f'Attempted addition: {packet.type} (ID: {packet.id})')
-
-                if self.tx_window[window_index] is not None:
-                    raise FlowControlError(f'Attempting to overwrite an item already in transmission window! '
-                                           f'Attempted addition to index {window_index}: {packet.type} (ID: {packet.id})')
-                self.tx_window[window_index] = {"packet": copy.deepcopy(packet),
-                                                "timestamp": time.time()}
-
-            logger.debug(
-                f"Transmitting packet (ID: {packet.id}, MsgType: {packet.type}, Checksum {packet.checksum})")
-            self.__write(packet)
-            self.tx_next_seq_num = (self.tx_next_seq_num + 1) % MAX_ID
+        self.in_queue.put(packet)
 
     # Add packet to rx_window, handle ack'ing behavior
-    def __rx_packet(self, packet: Packet):
+    def __rx_rdt(self, packet: Packet):
         # Ensure checksum matches expectation
         if packet.checksum != packet.calc_checksum():
             logger.debug(
@@ -230,18 +247,6 @@ class CommHandler():
             logger.debug(
                 f"Received acknowledgement (ID: {packet.id} Type: {packet.type})")
             self.__handle_ack(packet)
-            return
-
-        # Check if handshake was received
-        if packet.type == MsgType.HANDSHAKE or packet.type == MsgType.HANDSHAKE_RESPONSE:
-            self.__recv_handshake(packet)
-
-        # Deliver image packets directly, if applicable
-        elif (not self.reliable_img and packet.type == MsgType.IMAGE) \
-                or (not self.reliable_mtr_cmd and packet.type == MsgType.MTR_CMD):
-            logger.debug(f"Received unreliable image packet, "
-                         f"delivering directly to application (Length: {packet.length}).")
-            self.in_queue.put(packet)
             return
 
         # Application Packets handled below, e.g. TEXT, IMAGE, etc.
@@ -305,14 +310,14 @@ class CommHandler():
         pid = packet.id
         logger.debug(
             f"Sending acknowledgement for packet (ID: {pid}) with {ack_type}.")
-        ack_packet = Packet(ptype=ack_type, pid=pid)
-        self.__write(ack_packet)
+        ack_packet = Packet(ptype=ack_type, pid=pid, cmode=packet.cmode)
+        self.__tx_simple(ack_packet)
 
     def __recv_handshake(self, packet: Packet):
         if packet.type == MsgType.HANDSHAKE:
             logger.debug(f'Received handshake over {packet.cmode}')
             if not (self.comm_mode == CommMode.RADIO and packet.cmode == CommMode.SATELLITE):
-                self.change_mode(packet.cmode)
+                self.comm_mode = packet.cmode
             # Put handshake in in_queue so app knows connection was made
             self.in_queue.put(packet)
             # Update transmission bases to sync w/ client
@@ -320,19 +325,20 @@ class CommHandler():
             self.tx_base = packet.id
             self.rx_base = (packet.id + 1 % MAX_ID)
             # Send unreliable handshake response back to other party
-            response = Packet(ptype=MsgType.HANDSHAKE_RESPONSE, pid=packet.id, cmode=packet.cmode)
+            response = Packet(ptype=MsgType.HANDSHAKE_RESPONSE, pid=packet.id, cmode=packet.cmode, calc_checksum=True)
             self.__write(response)
         elif packet.type == MsgType.HANDSHAKE_RESPONSE:
             try:
                 self.__acknowledge_tx_pid(packet.id)
                 logger.debug(
                     f'Received acknowledgement over {packet.cmode} for handshake (ID: {packet.id})')
-                self.change_mode(packet.cmode)
+                self.comm_mode = packet.cmode
                 # Put handshake in in_queue so app knows connection was made
                 self.in_queue.put(packet)
             except FlowControlError:
                 logger.debug(f'Received handshake response over {packet.cmode} for handshake (ID: {packet.id})'
                              f', but ID was incorrect.')
+        logger.debug(f"CommMode is now: {self.comm_mode}")
 
     def __resend_expired_packets(self):
         t = time.time()
@@ -340,8 +346,7 @@ class CommHandler():
             expired_packets = list(filter(lambda x:
               x is not None
               and type(x) != str
-              and ((((t - x["timestamp"]) > RADIO_TX_TIMEOUT) and x["packet"].cmode == CommMode.RADIO)
-              or (((t - x["timestamp"]) > SAT_TX_TIMEOUT) and x["packet"].cmode == CommMode.SATELLITE)),
+              and ((t - x["timestamp"]) > RADIO_TX_TIMEOUT),
               self.tx_window))
             for packet_tuple in expired_packets:
                 packet = packet_tuple["packet"]
@@ -349,7 +354,13 @@ class CommHandler():
                 self.__write(packet)
                 packet_tuple["timestamp"] = t
 
+    # Retrieves packets from all relevant channels and processes them according to their type and channel
     def __read(self):
+        new_packets = []
+        radio_packet = self.radio.read_packet()
+        if radio_packet is not None:
+            new_packets.append(radio_packet)
+
         if self.comm_mode == CommMode.SATELLITE or self.comm_mode == CommMode.HANDSHAKE:
             if type(self.satellite) == EmailHandler:
                 # Handle multiple read packets
@@ -358,46 +369,29 @@ class CommHandler():
                 # Handle single read packet
                 sat_packet = self.satellite.read_packet()
                 if sat_packet is not None:
-                    self.__rx_packet(sat_packet)
-            # Also read radio for new handshakes
-            radio_packet = self.radio.read_packet()
-            if radio_packet is not None:
-                self.__rx_packet(radio_packet)
-        elif self.comm_mode == CommMode.RADIO:
-            new_packet = self.radio.read_packet()
-            if new_packet is not None:
-                self.__rx_packet(new_packet)
-        elif self.comm_mode == CommMode.DEBUG:
-            new_packet = read_debug_string()
-            if new_packet is not None:
-                print(
-                    f'----Received packet {new_packet.id}, {new_packet.type}: {new_packet.data[0:32]}', end='')
-                self.__rx_packet(new_packet)
+                    new_packets.append(sat_packet)
 
+        for packet in new_packets:
+            packet:Packet
+            logger.debug(f"Read packet: {packet.type} {packet.cmode}")
+            if packet.type == MsgType.HANDSHAKE or packet.type == MsgType.HANDSHAKE_RESPONSE:
+                self.__recv_handshake(packet)
+
+            elif self.comm_dict[packet.cmode].reliable or \
+                    (packet.type == MsgType.IMAGE and not self.reliable_img) or \
+                    (packet.type == MsgType.MTR_CMD and not self.reliable_mtr_cmd):
+                self.__rx_simple(packet)
+
+            else:
+                self.__rx_rdt(packet)
+
+    # Write to device based on comm_mode specified in packet object
     def __write(self, packet: Packet):
-        # Write to device based on comm_mode specified in packet object
         comm_mode = packet.cmode
         if comm_mode == CommMode.SATELLITE:
             self.satellite.write_packet(packet)
         elif comm_mode == CommMode.RADIO:
             self.radio.write_packet(packet)
-        elif self.comm_mode == CommMode.DEBUG:
-            # Debug
-            print(
-                f'----Writing packet {packet.id}, {packet.type}: {packet.data[0:32]}', end='')
-            if packet.length > 32:
-                print('...')
-            else:
-                print('')
-            # Additional check
-            if packet.checksum == packet.calc_checksum():
-                # Add packet to debug string
-                global debug_string
-                debug_string += packet.to_binary()
-            else:
-                print(f'Unexpected checksum error. '
-                      f'Expected check: {packet.checksum} Calc check: {packet.calc_checksum()}')
-                print(f'Erroneous packet: ({packet.to_binary()})')
 
     def __acknowledge_tx_pid(self, pid):
         index = (pid - self.tx_base) % MAX_ID
@@ -505,3 +499,12 @@ def read_debug_string():
             print(f"Debugger dropped packet due to invalid MsgType")
             debug_string = debug_string[len(SYNC_WORD):]
             return None
+
+
+class dummySatDevice():
+    def __init__(self):
+        self.reliable = True
+    def start(self):print("DummySatDevice Started")
+    def close(self):print("DummySatDevice Closed")
+    def write_packet(self, packet:Packet):print(f"DummySatDevice Sending Packet: (ID: {packet.id}, MsgType: {packet.type})")
+    def read_packet(self):print(f"DummySatDevice Received nothing!")

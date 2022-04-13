@@ -1,4 +1,5 @@
-from CommSys.CommHandler import CommHandler, CommMode
+from CommSys.CommMode import CommMode
+from CommSys.CommHandler import CommHandler
 from CommSys.Packet import Packet, MsgType
 from SensorLib.FPS import FPS
 import logging
@@ -41,7 +42,7 @@ websocketCamera.initialize_websockets_manager()
 def main():
     logger.info("Landbase starting...")
     print("Connecting to robot...")
-    comm_handler.start(mode=CommMode.SATELLITE)
+    comm_handler.start(mode=CommMode.HANDSHAKE)
     print("Connected!")
     webgui_msg("Connected to robot!")
 

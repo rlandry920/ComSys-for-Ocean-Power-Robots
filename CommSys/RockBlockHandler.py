@@ -1,6 +1,6 @@
-import rockBlock
+import CommSys.rockBlock as rockBlock
 import logging
-from CommSys.CommHandler import CommMode
+from CommSys.CommMode import CommMode
 from CommSys.Packet import Packet, MsgType, PacketError
 from threading import Lock, Thread
 
@@ -15,6 +15,7 @@ SAT_TX_TIMEOUT = 10
 
 class RockBlockHandler(Thread):
     def __init__(self):
+        self.reliable = True
         self.proto = ISBDPacketProtocol()
         self.running = False
 

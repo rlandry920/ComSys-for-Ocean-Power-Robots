@@ -1,7 +1,7 @@
 from enum import Enum
 import numpy as np
 import struct
-from CommSys.CommHandler import CommMode
+from CommSys.CommMode import CommMode
 
 value = 5.13482358
 value2 = 6512.65165
@@ -63,6 +63,8 @@ class MsgType(Enum):
 
 class Packet:
     def __init__(self, ptype: MsgType = MsgType.NULL, pid=0, data: bytes = b'', calc_checksum=False, cmode:CommMode=None):
+        self.cmode = cmode  # Used by CommHandler to a. force tx of packet across medium or b. indicate which medium
+                            # packet was rx'd through.
         # Parameterized Constructor
         if ptype != MsgType.NULL:
             # Check data length to ensure it is < 2^16
@@ -77,8 +79,6 @@ class Packet:
             self.data = data
             if calc_checksum:
                 self.checksum = self.calc_checksum()
-            self.cmode = cmode # Used by CommHandler to a. force tx of packet across medium or b. indicate which medium
-                               # packet was rx'd through.
 
         # From-Binary Constructor
         elif len(data) >= MIN_PACKET_SIZE:

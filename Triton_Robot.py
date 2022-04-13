@@ -1,7 +1,8 @@
 import logging
 from logging.handlers import RotatingFileHandler
 from SensorLib.CameraHandler import CameraHandler
-from CommSys.CommHandler import CommHandler, CommMode
+from CommSys.CommMode import CommMode
+from CommSys.CommHandler import CommHandler
 from CommSys.Packet import MsgType, Packet
 from CommSys.AROVHandler import AROVHandler
 import picamera

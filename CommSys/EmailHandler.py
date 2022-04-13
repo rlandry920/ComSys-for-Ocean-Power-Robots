@@ -20,14 +20,17 @@ logger = logging.getLogger(__name__)
 
 class EmailHandler():
     def __init__(self, username, password):
+        self.reliable = True
         self.username = username
         self.password = password
         self.mail = imaplib.IMAP4_SSL('imap.gmail.com')
-        (retcode, capabilities) = self.mail.login(self.username, self.password)
-        self.mail.select("INBOX")
 
         self.emailPort = 465  # For SSL
         self.context = ssl.create_default_context()
+
+    def start(self):
+        (retcode, capabilities) = self.mail.login(self.username, self.password)
+        self.mail.select("INBOX")
 
     def clean(text):
         # clean text for creating a folder
@@ -170,6 +173,9 @@ class EmailHandler():
             text = message.as_string()
 
             server.sendmail(sender_email, receiver_email, text)
+
+    def close(self):
+        self.logout()
 
     def logout(self):
         self.mail.close()
