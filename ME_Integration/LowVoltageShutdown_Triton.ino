@@ -26,9 +26,9 @@
 
 #define SLAVE_ADDR 0x70
 
-#define POWER_ON_VOLTAGE    13.2
-#define POWER_OFF_VOLTAGE   12.6
-#define FORCE_OFF_VOLTAGE   11.6
+#define POWER_ON_VOLTAGE    23.5
+#define POWER_OFF_VOLTAGE   23.5
+#define FORCE_OFF_VOLTAGE   22.5
 
 #define LOW_VOLTAGE_TIME_MS 30000ul    // 30 seconds
 #define OVERRIDE_TIME_MS    3600000ul  // 1 hour
