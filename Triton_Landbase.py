@@ -11,11 +11,19 @@ from ws4py.server.wsgirefserver import WSGIServer, WebSocketWSGIRequestHandler
 from ws4py.server.wsgiutils import WebSocketWSGIApplication
 from ws4py.websocket import WebSocket
 import struct
-from Triton_Robot import RobotState
 
 from WebGUI.WebGUI_Flask import app
 
 HEARTBEAT_TIMER = 15
+LOST_TIMER = 60
+
+state_dict = {
+    b'\x00': "Null",
+    b'\x01': "Standby",
+    b'\x02': "Live Control",
+    b'\x03': "Autonomous Navigation",
+    b'\x04': "Low Power Mode"
+}
 
 fps = FPS()
 comm_handler = CommHandler(landbase=True)
@@ -59,7 +67,7 @@ def main():
 
     try:
         while True:
-            # req_heartbeat()
+            req_heartbeat()
             if comm_handler.recv_flag():
                 packet = comm_handler.recv_packet()
                 digest_packet(packet)
@@ -83,6 +91,9 @@ def req_heartbeat():
         heartbeat_req = Packet(MsgType.HEARTBEAT_REQ)
         comm_handler.send_packet(heartbeat_req)
         heartbeat_ts = t
+    elif t - LOST_TIMER > heartbeat_ts:
+        print("Lost connection to robot!")
+        webgui_msg("Lost connection to robot!")
 
 
 def digest_packet(packet: Packet):
@@ -95,7 +106,7 @@ def digest_packet(packet: Packet):
     elif packet.type == MsgType.HEARTBEAT:
         latency = time.time() - heartbeat_ts
 
-        state = str(RobotState(packet.data[0]))
+        state = state_dict[packet.data[0]]
         lat, long, compass, voltage = struct.unpack('4f', packet.data[1:17])
 
         heartbeat_txt = f'Heartbeat from robot received. Latency: %.2f.' % latency
