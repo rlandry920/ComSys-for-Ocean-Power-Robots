@@ -67,7 +67,7 @@ def main():
 
     try:
         while True:
-            req_heartbeat()
+            # req_heartbeat()
             if comm_handler.recv_flag():
                 packet = comm_handler.recv_packet()
                 digest_packet(packet)
@@ -91,9 +91,6 @@ def req_heartbeat():
         heartbeat_req = Packet(MsgType.HEARTBEAT_REQ)
         comm_handler.send_packet(heartbeat_req)
         heartbeat_ts = t
-    elif t - LOST_TIMER > heartbeat_ts:
-        print("Lost connection to robot!")
-        webgui_msg("Lost connection to robot!")
 
 
 def digest_packet(packet: Packet):
@@ -106,8 +103,11 @@ def digest_packet(packet: Packet):
     elif packet.type == MsgType.HEARTBEAT:
         latency = time.time() - heartbeat_ts
 
-        state = state_dict[packet.data[0]]
+        state = str(RobotState(packet.data[0]))
+        webgui_state(state)
         lat, long, compass, voltage = struct.unpack('4f', packet.data[1:17])
+        webgui_gps(lat, long, compass)
+        webgui_voltage(voltage)
 
         heartbeat_txt = f'Heartbeat from robot received. Latency: %.2f.' % latency
         if len(packet.data) > 17:
@@ -130,6 +130,32 @@ def webgui_msg(txt: str):
     msg = {
         "type": "message",
         "message": txt
+    }
+    websocketData.manager.broadcast(json.dumps(msg))
+
+
+def webgui_gps(lat: float, long: float, compass: float):
+    msg = {
+        "type": "gps",
+        "lat": lat,
+        "long": long,
+        "compass": compass
+    }
+    websocketData.manager.broadcast(json.dumps(msg))
+
+
+def webgui_voltage(voltage: float):
+    msg = {
+        "type": "voltage",
+        "voltage": voltage
+    }
+    websocketData.manager.broadcast(json.dumps(msg))
+
+
+def webgui_state(state: str):
+    msg = {
+        "type": "state",
+        "state": state
     }
     websocketData.manager.broadcast(json.dumps(msg))
 
