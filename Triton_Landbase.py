@@ -96,7 +96,10 @@ def digest_packet(packet: Packet):
         latency = time.time() - heartbeat_ts
 
         state = str(RobotState(packet.data[0]))
+        webgui_state(state)
         lat, long, compass, voltage = struct.unpack('4f', packet.data[1:17])
+        webgui_gps(lat, long, compass)
+        webgui_voltage(voltage)
 
         heartbeat_txt = f'Heartbeat from robot received. Latency: %.2f.' % latency
         if len(packet.data) > 17:
@@ -119,6 +122,32 @@ def webgui_msg(txt: str):
     msg = {
         "type": "message",
         "message": txt
+    }
+    websocketData.manager.broadcast(json.dumps(msg))
+
+
+def webgui_gps(lat: float, long: float, compass: float):
+    msg = {
+        "type": "gps",
+        "lat": lat,
+        "long": long,
+        "compass": compass
+    }
+    websocketData.manager.broadcast(json.dumps(msg))
+
+
+def webgui_voltage(voltage: float):
+    msg = {
+        "type": "voltage",
+        "voltage": voltage
+    }
+    websocketData.manager.broadcast(json.dumps(msg))
+
+
+def webgui_state(state: str):
+    msg = {
+        "type": "state",
+        "state": state
     }
     websocketData.manager.broadcast(json.dumps(msg))
 

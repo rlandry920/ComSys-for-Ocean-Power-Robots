@@ -19,7 +19,6 @@ $(document).ready(function () {
     checkLiveControl();
     sendOpenWindow();
     sendGetNumUsers();
-    updateBattery(50);
 
     var refreshInterval = setInterval(refresh, refreshTime);
 
@@ -68,9 +67,16 @@ $(document).ready(function () {
             var type = data["type"];
             console.log(msg)
             switch (type) {
+                case "state":
+                    updateState(data["state"])
+                    break;
+                case "voltage":
+                    updateBattery(data["voltage"])
+                    break;
                 case "gps":
                     currLocation.lat = Math.round(data["lat"] * 10000) / 10000
                     currLocation.lng = Math.round(data["long"] * 10000) / 10000
+                    currDirection = data["compass"]
                     console.log("Received GPS data");
                     break;
                 case "message":
@@ -491,15 +497,23 @@ function updateCurrentLocation() {
     updateBoatMarker();
 }
 
-function updateBattery(level) {
+function updateBattery(voltage) {
+    var roundedVoltage = Math.round(voltage * 100) / 100
+    $("#curr_voltage").text("Current voltage: " + roundedVoltage.toString() + "V")
+
+    var percentage = (62.5 * voltage) - 1487.5
     var batteryLevel = jQuery('.battery .battery-level');
-    batteryLevel.css('width', level + '%');
-    batteryLevel.text(level + '%');
-    if (level > 50) {
+    batteryLevel.css('width', percentage + '%');
+    batteryLevel.text(percentage + '%');
+    if (percentage > 50) {
         batteryLevel.css('background-color', '#66CD00')
-    } else if (level >= 25) {
+    } else if (percentage >= 25) {
         batteryLevel.css('background-color', '#FCD116')
     } else {
         batteryLevel.css('background-color', '#FF3333')
     }
+}
+
+function updateState(state) {
+    $("#curr_state").text("Current state: " + state)
 }
