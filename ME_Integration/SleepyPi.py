@@ -3,6 +3,9 @@ from smbus2 import SMBus
 import os
 import struct
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 SHUTDOWN_PIN = 24
 NOTIFY_PIN = 25  # Used to let SleepyPi know RPi is on
@@ -15,12 +18,13 @@ class SleepyPi():
         GPIO.setup(SHUTDOWN_PIN, GPIO.IN)
         GPIO.setup(NOTIFY_PIN, GPIO.OUT)
         GPIO.output(NOTIFY_PIN, GPIO.HIGH)
+        logger.debug("SleepyPi Started")
 
     def read_voltage(self):
         bus = SMBus(1)
-        response = bus.read_block_data(SLEEPYPI_ADDR, 0x00, 4)
-        print(response)
+        response = bytearray(bus.read_i2c_block_data(SLEEPYPI_ADDR, 0, 4))
         voltage = struct.unpack('1f', response)
+        logger.debug(f'SleepyPi gave voltage: {voltage}')
         bus.close()
         return voltage
 

@@ -71,13 +71,16 @@ class ISBDPacketProtocol(rockBlock.rockBlockProtocol):
 
     def write_packet(self, packet: Packet):
         if self.rb.sendMessage(packet.to_binary()):
-            # Packet was accepted by RockBLOCK - we can assume ISBD is a reliable transfer service so acknowledge it
-            ack = Packet(ptype=MsgType.SACK, pid=packet.id, cmode=CommMode.SATELLITE)
-            with self.received_packets_l:
-                self.received_packets.append(ack)
+            logger.debug(f"Packet (Type {packet.type}) successfully accepted!")
+        else:
+            logger.debug(f"Packet (Type {packet.type}) failed to send.")
 
     def read_packet(self):
         if len(self.received_packets) > 0:
             with self.received_packets_l:
                 return self.received_packets.pop(0)
         return None
+
+
+if __name__ == "__main__":
+    pass

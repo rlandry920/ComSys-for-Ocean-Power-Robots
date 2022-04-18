@@ -26,12 +26,11 @@
 
 #define SLAVE_ADDR 0x70
 
-#define POWER_ON_VOLTAGE    23.5
-#define POWER_OFF_VOLTAGE   23.5
-#define FORCE_OFF_VOLTAGE   22.5
+#define POWER_ON_VOLTAGE    12
+#define POWER_OFF_VOLTAGE   10
+#define FORCE_OFF_VOLTAGE   8
 
-#define LOW_VOLTAGE_TIME_MS 30000ul    // 30 seconds
-#define OVERRIDE_TIME_MS    3600000ul  // 1 hour
+#define LOW_VOLTAGE_TIME_MS 10000ul    // 10 seconds
 
 // States
 typedef enum {
@@ -41,6 +40,11 @@ typedef enum {
     ePI_SHUTTING_DOWN
 }ePISTATE;
 
+typedef union{
+  float val;
+  unsigned char bytes[4];
+}FLOATUNION_t;
+
 const int LED_PIN = 13;
 
 volatile bool  alarmFired = false;
@@ -48,9 +52,8 @@ ePISTATE       pi_state = ePI_OFF;
 bool state = LOW;
 unsigned long  time,
                timeLow = 0,
-               timeVeryLow = 0,
-               timePress = 0;
-float supply_voltage = 0;
+               timeVeryLow = 0;
+FLOATUNION_t supply_voltage;
 
 // Set the period to check voltage recovery. Higher values improve power savings.
 eTIMER_TIMEBASE  PeriodicTimer_Timebase     = eTB_SECOND;   // e.g. Timebase set to seconds. Other options: eTB_MINUTE, eTB_HOUR
@@ -64,26 +67,26 @@ void alarm_isr()
 
 void setup()
 {
+    supply_voltage.val = 0;
+    // Initialize serial communication:
+    Serial.begin(9600);
+    Serial.println("Start...");
+    
     // Configure "Standard" LED pin
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN,LOW);		// Switch off LED
-
+  
     SleepyPi.enablePiPower(false);
     SleepyPi.enableExtPower(false);
-    
+
     // FIXME: Not sure why we need this line
     SleepyPi.rtcClearInterrupts();
-
     // Allow wake up alarm to trigger interrupt on falling edge.
     attachInterrupt(0, alarm_isr, FALLING);    // Alarm pin
-    
-    // Initialize serial communication:
-    Serial.begin(9600);
-    Serial.println("Start..");
-    delay(50);
+    Serial.println("RTC and Alarms Configured.");
 
     // Initialize I2C communication:
-    Serial.println("Beginning i2c wire");
+    Serial.println("Beginning I2C wire...");
     Wire.begin(SLAVE_ADDR);
     Wire.onRequest(voltageRequest);
     
@@ -102,7 +105,7 @@ void loop()
     pi_running = SleepyPi.checkPiStatus(true);  // Cut Power if we detect Pi not running
     if(pi_running == false){
         delay(500);
-        Serial.println("Pi not running..");
+        Serial.println("TritonRobot is not running..");
         SleepyPi.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF); 
         pi_running = SleepyPi.checkPiStatus(false);
     }
@@ -110,11 +113,9 @@ void loop()
     time = millis();
     // Check for rollover
     if(time < timeLow ||
-       time < timeVeryLow ||
-       time < timePress){
+       time < timeVeryLow){
         timeLow = time;
         timeVeryLow = time;
-        timePress = 0;
     }
 
     if(alarmFired == true){
@@ -124,34 +125,32 @@ void loop()
 
     // Boot or shutdown based on supply voltage
     delay(10);  // voltage reading is artificially high if we don't delay first
-    supply_voltage = SleepyPi.supplyVoltage();
+    supply_voltage.val = SleepyPi.supplyVoltage();
+    String my_voltage = "Voltage: ";
+    my_voltage.concat(supply_voltage.val);
+    Serial.println(my_voltage);
     if(pi_running == true){
-        if(supply_voltage > POWER_OFF_VOLTAGE){
+        if(supply_voltage.val > POWER_OFF_VOLTAGE){
             // Voltage is normal; reset the low voltage counter
             timeLow = time;
         }
-        if(supply_voltage > FORCE_OFF_VOLTAGE){
+        if(supply_voltage.val > FORCE_OFF_VOLTAGE){
             timeVeryLow = time;
         }
         // Check for low voltage
         // Allow override with the button during low voltage state,
         // but not during very low voltage / force off state.
         if(time - timeVeryLow > LOW_VOLTAGE_TIME_MS || (
-           time - timeLow > LOW_VOLTAGE_TIME_MS &&
-           (timePress == 0 || time - timePress > OVERRIDE_TIME_MS))){
+           time - timeLow > LOW_VOLTAGE_TIME_MS)){
             // Start a shutdown
             Serial.println("Shutting down..");
             SleepyPi.piShutdown();
             SleepyPi.enableExtPower(false);
         }
-        // Send voltage reading to Pi for logging
-        String my_voltage = "Voltage: ";
-        my_voltage.concat(supply_voltage);
-        Serial.println(my_voltage);
         delay(500);
     } else {
         // Check for voltage recovery
-        if(supply_voltage >= POWER_ON_VOLTAGE){
+        if(supply_voltage.val >= POWER_ON_VOLTAGE){
             // Switch on the Pi
             Serial.println("Switching on..");
             SleepyPi.enablePiPower(true);
@@ -161,6 +160,6 @@ void loop()
 }
 
 void voltageRequest(){
-  byte* b_voltage = (byte*)&supply_voltage;
-  Wire.write(b_voltage, 4);
+  Serial.println("Received I2C request!");
+  Wire.write(supply_voltage.bytes, 4);
 }

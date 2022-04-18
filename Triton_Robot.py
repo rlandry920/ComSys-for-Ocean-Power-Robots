@@ -8,6 +8,7 @@ from CommSys.AROVHandler import AROVHandler
 import picamera
 import struct
 import ME_Integration.escController as esc
+from ME_Integration.SleepyPi import SleepyPi
 from systemd.journal import JournaldLogHandler
 import time
 
@@ -20,6 +21,7 @@ comm_handler = CommHandler(landbase=False)
 cam = picamera.PiCamera(resolution='320x240', framerate=5)
 cam_handler = CameraHandler(comm_handler, cam)
 arov = AROVHandler()
+sleepy = SleepyPi()
 
 live_control = False
 
