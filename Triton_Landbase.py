@@ -112,7 +112,7 @@ def digest_packet(packet: Packet):
     global heartbeat_sent
     if packet is None:
         return
-    elif packet.type == MsgType.TEXT:
+    elif packet.type == MsgType.TEXT or packet.type == MsgType.INFO or packet.type == MsgType.ERROR:
         print(packet.data.decode('utf-8'))
         webgui_msg(packet.data.decode('utf-8'))
     elif packet.type == MsgType.HEARTBEAT:
