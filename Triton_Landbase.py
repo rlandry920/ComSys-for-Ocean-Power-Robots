@@ -68,7 +68,7 @@ def main():
 
     try:
         while True:
-            # req_heartbeat()
+            req_heartbeat()
             if comm_handler.recv_flag():
                 packet = comm_handler.recv_packet()
                 digest_packet(packet)
@@ -131,7 +131,7 @@ def digest_packet(packet: Packet):
         print(heartbeat_txt)
         webgui_msg(heartbeat_txt)
 
-        if state == "Low Power":
+        if state == "Low Power Mode":
             restart_commhandler()  # Robot is entering low power, wait for it to restart communications
 
     elif packet.type == MsgType.IMAGE:

@@ -65,7 +65,6 @@ $(document).ready(function () {
         wsData.onmessage = function (msg) {
             var data = JSON.parse(msg.data);
             var type = data["type"];
-            console.log(msg)
             switch (type) {
                 case "state":
                     updateState(data["state"])
@@ -77,14 +76,12 @@ $(document).ready(function () {
                     currLocation.lat = Math.round(data["lat"] * 10000) / 10000
                     currLocation.lng = Math.round(data["long"] * 10000) / 10000
                     currDirection = data["compass"]
-                    console.log("Received GPS data");
                     break;
                 case "message":
-                    console.log(data["message"])
                     addMessage(data["message"], "r")
                     breakl
                 case "num-users":
-                    console.log(data["num-users"])
+                    console.log('Num users: ' + data["num-users"])
                     $("#num_users_text").text("Active Users: " + data["num-users"])
                     break;
                 default:
@@ -98,13 +95,6 @@ $(document).ready(function () {
 
     window.onbeforeunload = function () {
         navigator.sendBeacon("{{ url_for("closeWindow") }}");
-        // $.ajax({
-        //     type: 'POST',
-        //     url: "{{ url_for("closeWindow") }}",
-        //     contentType: "application/json",
-        //     dataType: "text",
-        //     async: false,
-        // });
     };
 
     $("#live_control").click(function () {
@@ -400,7 +390,6 @@ function sendSwitchMotorCommand(motor) {
 }
 
 function sendMoveCommand(command) {
-    console.log(document.getElementById("speed").value)
     var data = [
         {
             "command": command,
@@ -467,17 +456,9 @@ function initMap() {
 
 function updateBoatMarker() {
     currLocationMarker.setPosition(currLocation)
-    var bounds = new google.maps.LatLngBounds();
-    if (goToMarker.visible) {
-        bounds.extend(goToMarker.position);
-    } else {
-        bounds.extend(currLocationMarker.position);
-    }
-    bounds.extend(currLocationMarker.position);
-    map.fitBounds(bounds);
     if (!goToMarker.visible)
-        if (map.getZoom() > 13) {
-            map.setZoom(13);
+        if (map.getZoom() > 16) {
+            map.setZoom(16);
         }
 }
 
@@ -501,7 +482,10 @@ function updateBattery(voltage) {
     var roundedVoltage = Math.round(voltage * 100) / 100
     $("#curr_voltage").text("Current voltage: " + roundedVoltage.toString() + "V")
 
-    var percentage = (62.5 * voltage) - 1487.5
+    var percentage = (Math.round((62.5 * voltage) - 1487.5) * 100) / 100
+    if (percentage > 100) {
+        percentage = 100;
+    }
     var batteryLevel = jQuery('.battery .battery-level');
     batteryLevel.css('width', percentage + '%');
     batteryLevel.text(percentage + '%');

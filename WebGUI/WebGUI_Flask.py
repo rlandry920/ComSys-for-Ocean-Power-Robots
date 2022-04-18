@@ -27,8 +27,14 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/')
+@app.route('/script.js')
+def script():
+    return render_template('index.js')
+
+
+@app.route('/openWindow', methods=['POST', 'DELETE'])
 def openWindow():
+    print("WINDOW OPENED")
     global activeUsers
     activeUsers += 1
     msg = {
@@ -37,11 +43,6 @@ def openWindow():
     }
     app.config['websocketData'].manager.broadcast(json.dumps(msg))
     return "WINDOW OPENED"
-
-
-@app.route('/script.js')
-def script():
-    return render_template('index.js')
 
 
 @app.route('/goToCoordinates', methods=['POST', 'DELETE'])
@@ -119,7 +120,8 @@ def switchMotor():
 def closeWindow():
     print("WINDOW CLOSED")
     global activeUsers
-    activeUsers -= 1
+    if(activeUsers > 0):
+        activeUsers -= 1
     msg = {
         "type": "num-users",
         "num-users": activeUsers
