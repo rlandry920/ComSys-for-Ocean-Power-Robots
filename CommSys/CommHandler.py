@@ -321,9 +321,9 @@ class CommHandler():
             # Put handshake in in_queue so app knows connection was made
             self.in_queue.put(packet)
             # Update transmission bases to sync w/ client
-            self.__reset_windows()
             self.tx_base = packet.id
             self.rx_base = (packet.id + 1 % MAX_ID)
+            self.__reset_windows()
             # Send unreliable handshake response back to other party
             response = Packet(ptype=MsgType.HANDSHAKE_RESPONSE, pid=packet.id, cmode=packet.cmode, calc_checksum=True)
             self.__write(response)
@@ -332,7 +332,14 @@ class CommHandler():
                 self.__acknowledge_tx_pid(packet.id)
                 logger.debug(
                     f'Received acknowledgement over {packet.cmode} for handshake (ID: {packet.id})')
-                self.comm_mode = packet.cmode
+                if not (self.comm_mode == CommMode.RADIO and packet.cmode == CommMode.SATELLITE):
+                    self.comm_mode = packet.cmode
+                # Put handshake in in_queue so app knows connection was made
+                self.in_queue.put(packet)
+                # Update transmission bases to sync w/ client
+                self.tx_base = (packet.id + 1 % MAX_ID)
+                self.rx_base = packet.id
+                self.__reset_windows()
                 # Put handshake in in_queue so app knows connection was made
                 self.in_queue.put(packet)
             except FlowControlError:
@@ -445,6 +452,7 @@ class CommHandler():
             self.in_queue.put(item)
 
     def __reset_windows(self):
+        self.tx_next_seq_num = self.tx_base
         self.tx_window = [None] * self.window_size
         self.rx_window = [None] * self.window_size
 

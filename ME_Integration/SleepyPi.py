@@ -13,7 +13,8 @@ SLEEPYPI_ADDR = 0x70
 
 
 class SleepyPi():
-    def __init__(self):
+    def __init__(self, shutdown_target=None):
+        self.shutdown_target = shutdown_target
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(SHUTDOWN_PIN, GPIO.IN)
         GPIO.setup(NOTIFY_PIN, GPIO.OUT)
@@ -23,13 +24,15 @@ class SleepyPi():
     def read_voltage(self):
         bus = SMBus(1)
         response = bytearray(bus.read_i2c_block_data(SLEEPYPI_ADDR, 0, 4))
-        voltage = struct.unpack('1f', response)
+        voltage = struct.unpack('1f', response)[0]
         logger.debug(f'SleepyPi gave voltage: {voltage}')
         bus.close()
         return voltage
 
     def check_shutdown(self):
         if GPIO.input(SHUTDOWN_PIN):
+            if callable(self.shutdown_target):
+                self.shutdown_target()
             os.system("sudo shutdown -h now")
 
 
