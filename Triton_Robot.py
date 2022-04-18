@@ -7,6 +7,7 @@ from CommSys.Packet import MsgType, Packet
 from CommSys.AROVHandler import AROVHandler
 import picamera
 import struct
+from enum import Enum
 import ME_Integration.escController as esc
 from ME_Integration.SleepyPi import SleepyPi
 from systemd.journal import JournaldLogHandler
@@ -17,16 +18,27 @@ MOTOR_TIMEOUT = 2
 motor_ts = 0
 motor_on = False
 
+
+class RobotState(Enum):
+    NULL = b'\x00',
+    STANDBY = b'\x01',  # Waiting for connection
+    IDLE = b'\x02',  # Connection made but no commands
+    LIVE_CONTROL = b'\x02'
+    AUTO_CONTROL = b'\x03'
+    LOW_POWER = b'\x04'
+
+
 comm_handler = CommHandler(landbase=False)
 cam = picamera.PiCamera(resolution='320x240', framerate=5)
 cam_handler = CameraHandler(comm_handler, cam)
 arov = AROVHandler()
 sleepy = SleepyPi()
 
-live_control = False
+state = RobotState.STANDBY
 
 
 def main():
+    global state
     logger.info("Robot starting...")
     logger.info("Arming ESCs...")
     esc.arm()
@@ -34,6 +46,7 @@ def main():
 
     logger.info("Connecting to landbase...")
     comm_handler.start(CommMode.HANDSHAKE)
+    state = RobotState.IDLE
     logger.info("Connection with landbase established!")
 
     try:
@@ -58,20 +71,28 @@ def main():
 
 
 def digest_packet(packet: Packet):
-    global live_control, motor_ts, motor_on
+    global state, motor_ts, motor_on
     if packet is None:
         return
     elif packet.type == MsgType.TEXT:
         logger.info(f'Received text message: {packet.data.decode("utf-8")}')
     elif packet.type == MsgType.HEARTBEAT_REQ:
         logger.info(f'Received heartbeat request')
+        lat, long = getGPS()
+        comp = getCompass()
+        voltage = sleepy.read_voltage()
+
+        hb_data = state + struct.pack('4f', lat, long, comp, voltage)
         my_ip = arov.get_IP()
-        heartbeat = Packet(MsgType.HEARTBEAT, data=my_ip.encode('utf-8'))
+        if my_ip is not None:
+            hb_data += my_ip.encode('utf-8')
+
+        heartbeat = Packet(MsgType.HEARTBEAT, data=hb_data)
         comm_handler.send_packet(heartbeat)
     elif packet.type == MsgType.MTR_CMD:
         left, right = struct.unpack('2f', packet.data[0:8])
         logger.info(f'Received motor command: LEFT={str(left)} RIGHT={str(right)}')
-        if live_control:
+        if state == RobotState.LIVE_CONTROL:
             motor_on = True
             motor_ts = time.time()
             esc.setSpeed(esc.ESC_LEFT, left)
@@ -80,14 +101,12 @@ def digest_packet(packet: Packet):
             logger.warning(f"Live control hasn't been enable yet!")
     elif packet.type == MsgType.CTRL_REQ:
         enable = (packet.data == b'\x01')
-        if enable and enable != live_control:
+        if enable and (state == RobotState.IDLE or state == RobotState.AUTO_CONTROL):
             logger.info("Starting live control.")
             cam_handler.start()
-        elif not enable and enable != live_control:
+        elif not enable and state == RobotState.LIVE_CONTROL:
             logger.info("Stopping live control.")
             cam_handler.stop()
-
-        live_control = enable
     else:
         logger.info(f'Received packet (ID: {packet.id} of type {packet.type})')
 
@@ -99,6 +118,13 @@ def check_motors():
         esc.setSpeed(esc.ESC_LEFT, 0)
         esc.setSpeed(esc.ESC_RIGHT, 0)
         motor_on = False
+
+
+def getGPS():
+    return 37.229994, -80.429152
+
+def getCompass():
+    return 15.0
 
 
 if __name__ == "__main__":

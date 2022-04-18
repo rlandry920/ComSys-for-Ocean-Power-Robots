@@ -83,4 +83,11 @@ class ISBDPacketProtocol(rockBlock.rockBlockProtocol):
 
 
 if __name__ == "__main__":
-    pass
+    rb = RockBlockHandler()
+    packet = Packet(MsgType.TEXT, data=b'Hello world!!!')
+    rb.start()
+    rb.write_packet(packet)
+    recv = None
+    while recv is None:
+        recv = rb.read_packet()
+    print(f'Received packet! Type: {packet.type} Length: {packet.length} Data: {packet.data}')

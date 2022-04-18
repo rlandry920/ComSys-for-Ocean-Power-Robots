@@ -10,6 +10,8 @@ from wsgiref.simple_server import *
 from ws4py.server.wsgirefserver import WSGIServer, WebSocketWSGIRequestHandler
 from ws4py.server.wsgiutils import WebSocketWSGIApplication
 from ws4py.websocket import WebSocket
+import struct
+from Triton_Robot import RobotState
 
 from WebGUI.WebGUI_Flask import app
 
@@ -55,8 +57,6 @@ def main():
 
     fps.start()
 
-    lat = 37.2284
-    long = -80.4234
     try:
         while True:
             # req_heartbeat()
@@ -94,7 +94,14 @@ def digest_packet(packet: Packet):
         webgui_msg(packet.data.decode('utf-8'))
     elif packet.type == MsgType.HEARTBEAT:
         latency = time.time() - heartbeat_ts
-        heartbeat_txt = f'Heartbeat from robot received. Latency: %.2f. Msg: {packet.data.decode("utf-8")}' % latency
+
+        state = str(RobotState(packet.data[0]))
+        lat, long, compass, voltage = struct.unpack('4f', packet.data[1:17])
+
+        heartbeat_txt = f'Heartbeat from robot received. Latency: %.2f.' % latency
+        if len(packet.data) > 17:
+            heartbeat_txt += f" Msg: {packet.data[17:].decode('utf-8')}"
+
         print(heartbeat_txt)
         webgui_msg(heartbeat_txt)
     elif packet.type == MsgType.IMAGE:

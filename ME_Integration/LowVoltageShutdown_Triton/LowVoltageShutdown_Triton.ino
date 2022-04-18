@@ -32,14 +32,6 @@
 
 #define LOW_VOLTAGE_TIME_MS 10000ul    // 10 seconds
 
-// States
-typedef enum {
-    ePI_OFF = 0,
-    ePI_BOOTING,
-    ePI_ON,
-    ePI_SHUTTING_DOWN
-}ePISTATE;
-
 typedef union{
   float val;
   unsigned char bytes[4];
@@ -48,7 +40,6 @@ typedef union{
 const int LED_PIN = 13;
 
 volatile bool  alarmFired = false;
-ePISTATE       pi_state = ePI_OFF;
 bool state = LOW;
 unsigned long  time,
                timeLow = 0,
@@ -64,6 +55,13 @@ void alarm_isr()
     alarmFired = true;
 }
 
+void button_isr()
+{
+  // Use in case of RTC initialization failure.
+  SleepyPi.enablePiPower(true);
+  SleepyPi.enableExtPower(true);
+  digitalWrite(LED_PIN, HIGH);
+}
 
 void setup()
 {
@@ -79,10 +77,13 @@ void setup()
     SleepyPi.enablePiPower(false);
     SleepyPi.enableExtPower(false);
 
-    // FIXME: Not sure why we need this line
-    SleepyPi.rtcClearInterrupts();
     // Allow wake up alarm to trigger interrupt on falling edge.
     attachInterrupt(0, alarm_isr, FALLING);    // Alarm pin
+    attachInterrupt(1, button_isr, LOW);
+  
+    // FIXME: Not sure why we need this line
+    SleepyPi.rtcClearInterrupts();
+    
     Serial.println("RTC and Alarms Configured.");
 
     // Initialize I2C communication:
