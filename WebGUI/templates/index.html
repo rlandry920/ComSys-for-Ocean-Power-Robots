@@ -28,6 +28,7 @@
               style="position: absolute; top: 20; float: right"
             />
             <img
+              id="compass_image"
               src="{{ url_for('static',filename = 'compass-boat.png') }}"
               width="100"
               height="100"
@@ -101,7 +102,7 @@
         </div>
       </div>
       <div id="log" class="container">
-        <p id="num_users_text">Active Users: 0</p>
+        <p class="cards" id="num_users_text">Active Users: 0</p>
         <div id="message-box" class="cards"></div>
       </div>
     </div>

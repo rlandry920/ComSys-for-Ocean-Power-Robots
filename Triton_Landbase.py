@@ -18,11 +18,12 @@ HEARTBEAT_TIMER = 15
 LOST_TIMER = 60
 
 state_dict = {
-    b'\x00': "Null",
-    b'\x01': "Standby",
-    b'\x02': "Live Control",
-    b'\x03': "Autonomous Navigation",
-    b'\x04': "Low Power Mode"
+    0: "Null",
+    1: "Standby",
+    2: "Idle",
+    3: "Live Control",
+    4: "Autonomous Navigation",
+    5: "Low Power Mode"
 }
 
 fps = FPS()
@@ -67,7 +68,7 @@ def main():
 
     try:
         while True:
-            # req_heartbeat()
+            req_heartbeat()
             if comm_handler.recv_flag():
                 packet = comm_handler.recv_packet()
                 digest_packet(packet)
@@ -103,7 +104,8 @@ def digest_packet(packet: Packet):
     elif packet.type == MsgType.HEARTBEAT:
         latency = time.time() - heartbeat_ts
 
-        state = str(RobotState(packet.data[0]))
+        print(packet.data[0])
+        state = str(state_dict[packet.data[0]])
         webgui_state(state)
         lat, long, compass, voltage = struct.unpack('4f', packet.data[1:17])
         webgui_gps(lat, long, compass)
