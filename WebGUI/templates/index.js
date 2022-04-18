@@ -19,6 +19,7 @@ $(document).ready(function () {
     checkLiveControl();
     sendOpenWindow();
     sendGetNumUsers();
+    updateBattery(50);
 
     var refreshInterval = setInterval(refresh, refreshTime);
 
@@ -230,14 +231,6 @@ $(document).ready(function () {
 
     document.getElementById("speed").oninput = function () {
         updateSpeed(this.value);
-    }
-
-    document.getElementById("wave-glider").onclick = function () {
-        sendSwitchMotorCommand("Wave-Glider");
-    }
-
-    document.getElementById("heave-plate").onclick = function () {
-        sendSwitchMotorCommand("Heave-Plate");
     }
 
     google.maps.event.addListener(map, 'click', function (event) {
@@ -496,4 +489,17 @@ function updateCurrentLocation() {
     $("#curr_dir").text("Current bearing: " + currDirection.toString() + " degrees")
 
     updateBoatMarker();
+}
+
+function updateBattery(level) {
+    var batteryLevel = jQuery('.battery .battery-level');
+    batteryLevel.css('width', level + '%');
+    batteryLevel.text(level + '%');
+    if (level > 50) {
+        batteryLevel.css('background-color', '#66CD00')
+    } else if (level >= 25) {
+        batteryLevel.css('background-color', '#FCD116')
+    } else {
+        batteryLevel.css('background-color', '#FF3333')
+    }
 }

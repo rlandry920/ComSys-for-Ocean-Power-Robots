@@ -113,3 +113,30 @@ body {
 #num_users_text {
   text-align: center;
 }
+
+.battery:after {
+  background-color: #fff;
+  border: 2px solid #000;
+  content: "";
+  display: block;
+  height: 16px;
+  position: absolute;
+  right: -6px;
+  top: 6px;
+  width: 6px;
+}
+.battery {
+  background-color: #fff;
+  border: 2px solid #000;
+  height: 32px;
+  margin-left: auto;
+  margin-right: auto;
+  position: relative;
+  width: 100px;
+}
+.battery .battery-level {
+  height: 100%;
+  text-align: center;
+  justify-content: center;
+  margin:auto;
+}
