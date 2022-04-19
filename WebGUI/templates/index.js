@@ -75,7 +75,7 @@ $(document).ready(function () {
                 case "gps":
                     currLocation.lat = Math.round(data["lat"] * 10000) / 10000
                     currLocation.lng = Math.round(data["long"] * 10000) / 10000
-                    currDirection = data["compass"]
+                    currDirection = Math.round(data["compass"] * 100) / 100
                     break;
                 case "message":
                     addMessage(data["message"], "r")
@@ -485,6 +485,9 @@ function updateBattery(voltage) {
     var percentage = (Math.round((62.5 * voltage) - 1487.5) * 100) / 100
     if (percentage > 100) {
         percentage = 100;
+    }
+    else if (percentage < 0) {
+        percentage = 0;
     }
     var batteryLevel = jQuery('.battery .battery-level');
     batteryLevel.css('width', percentage + '%');
