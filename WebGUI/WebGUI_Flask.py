@@ -9,13 +9,17 @@ from threading import Thread
 
 from WebGUI.WebGUI_Utils import *
 
-app = Flask(__name__, static_url_path='/static', static_folder='static')
+# WebGUI_Flask.py
+#
+# Last updated: 04/26/2022
+# This serves as a backend for the landbase in order to keep the UI seperate from all of the
+# commands. Each of the routes has a function attatched to it that will be run whenever the route
+# is accessed. The landbase can access these functions using HTTP. These function can then send messages
+# to the robot using the CommSys and also send messages back to the landbase using the websockets. This
+# also packs all of the HTML and JS together.
 
-currDirection = 0
-currCoordinates = {
-    "lat": 37.2284,
-    "long": -80.4234
-}
+
+app = Flask(__name__, static_url_path='/static', static_folder='static')
 
 logger = logging.getLogger(__name__)
 
@@ -70,20 +74,6 @@ def move():
     data = request.get_json()[0]
     command = data["command"]
     speed = data["speed"]
-
-    global currDirection
-    global currCoordinates
-    if (command == "turnLeft"):
-        currDirection -= 5
-    elif (command == "turnRight"):
-        currDirection += 5
-    elif (command == "moveForward"):
-        currCoordinates['lat'] += 0.005
-        currCoordinates['long'] += 0.005
-
-    elif command == "moveBackward":
-        currCoordinates['lat'] -= 0.005
-        currCoordinates['long'] -= 0.005
 
     message = sendDirectionCommand(command, speed, app.config['commHandler'])
     msg = {

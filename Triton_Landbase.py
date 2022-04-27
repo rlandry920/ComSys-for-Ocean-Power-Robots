@@ -14,6 +14,17 @@ import struct
 
 from WebGUI.WebGUI_Flask import app
 
+
+# Triton_Landbase.py
+#
+# Last updated: 04/26/2022
+# Main application-level script for the landbase. Combines WebGUI with CommSys so commands can be
+# sent from the user to the robot and the webGUI can display current data from robot.
+#
+# TODO List:
+# - Add functionality for autonomous navigation
+
+
 HEARTBEAT_TIMER = 15
 LOST_TIMER = 60
 
@@ -37,6 +48,8 @@ logging.basicConfig(filename='landbase.log',
                     format='%(asctime)s | %(funcName)s | %(levelname)s | %(message)s')
 
 logger = logging.getLogger(__name__)
+
+# Websocket for all data
 websocketData = make_server('', 8000, server_class=WSGIServer,
                             handler_class=WebSocketWSGIRequestHandler,
                             app=WebSocketWSGIApplication(handler_cls=WebSocket))
@@ -44,6 +57,7 @@ websocketData.initialize_websockets_manager()
 
 app.config['websocketData'] = websocketData
 
+# Websocket for camera feed
 websocketCamera = make_server('', 9000, server_class=WSGIServer,
                               handler_class=WebSocketWSGIRequestHandler,
                               app=WebSocketWSGIApplication(handler_cls=WebSocket))
@@ -69,6 +83,7 @@ def main():
     try:
         while True:
             req_heartbeat()
+            # Read all packets that are received
             if comm_handler.recv_flag():
                 packet = comm_handler.recv_packet()
                 digest_packet(packet)
@@ -117,6 +132,7 @@ def digest_packet(packet: Packet):
         print(packet.data.decode('utf-8'))
         webgui_msg(packet.data.decode('utf-8'))
     elif packet.type == MsgType.HEARTBEAT:
+        # Get all of the information from the heartbeat and send to landbase
         heartbeat_sent = False
         latency = time.time() - heartbeat_ts
 
@@ -137,7 +153,8 @@ def digest_packet(packet: Packet):
             logger.info("Low Power Heartbeat received")
             heartbeat_sent = False
             time.sleep(0.5)
-            restart_commhandler()  # Robot is entering low power, wait for it to restart communications
+            # Robot is entering low power, wait for it to restart communications
+            restart_commhandler()
 
     elif packet.type == MsgType.IMAGE:
         # Broadcast h264 encoded image
@@ -151,12 +168,15 @@ def digest_packet(packet: Packet):
         print(f'Received packet (ID: {packet.id} of type {packet.type})')
 
 
+# Send message to webGUI
 def webgui_msg(txt: str):
     msg = {
         "type": "message",
         "message": txt
     }
     websocketData.manager.broadcast(json.dumps(msg))
+
+# Send GPS data to webGUI
 
 
 def webgui_gps(lat: float, long: float, compass: float):
@@ -168,6 +188,8 @@ def webgui_gps(lat: float, long: float, compass: float):
     }
     websocketData.manager.broadcast(json.dumps(msg))
 
+# Send voltage value to webGUI
+
 
 def webgui_voltage(voltage: float):
     msg = {
@@ -175,6 +197,8 @@ def webgui_voltage(voltage: float):
         "voltage": voltage
     }
     websocketData.manager.broadcast(json.dumps(msg))
+
+# Send state to webGUI
 
 
 def webgui_state(state: str):

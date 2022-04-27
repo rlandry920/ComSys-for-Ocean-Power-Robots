@@ -1,5 +1,15 @@
 import math
 
+# navigation_script.py
+#
+# Last updated: 04/26/2022
+# Contains functions that take can calculate the best path based to a destination based on
+# current coordinates.
+#
+# TODO List:
+# - Integrate this script with motor controllers and landbase
+
+
 #  North is 0
 #  East is 90
 #  South is 180

@@ -3,6 +3,15 @@ import struct
 import sys
 import requests
 
+
+# WebGUI_Utils.py
+#
+# Last updated: 04/26/2022
+# Contains utility functions that are used by the Flask script. These functions create packets that can
+# be sent to the robot using the CommSys.
+#
+
+
 # Create packet for movement command
 
 
