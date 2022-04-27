@@ -2,39 +2,39 @@
 
 ## Table of Contents
 
-- ### [⠀Overview⠀](#Overview)
+- ### Overview
 
-  - #### [⠀Installation⠀](##Installation)
+  - #### Installation
 
-  - #### [⠀Usage⠀](##Usage)
+  - #### Usage
 
-- ### [⠀Software Design⠀](##Software Design)
+- ### Software Design
 
-  - #### [⠀Comm. System⠀](###Comm System)
+  - #### Comm. System
 
-    - [Packet](####Packet)
-    - [CommHandler](####CommHandler)
-    - [SerialHandler](####SerialHandler (previously RadioHandler))
-    - [RockBlockHandler](####RockBlockHandler)
-    - [EmailHandler](####EmailHandler)
+    - Packet
+    - CommHandler
+    - SerialHandler
+    - RockBlockHandler
+    - EmailHandler
 
-  - #### [⠀WebGUI⠀](###Webgui)
+  - #### WebGUI
 
-    - [WebGUI Flask](####WebGUI Flask)
-    - [WebGUI Utils](####WebGUI Utils)
+    - WebGUI Flask
+    - WebGUI Utils
 
-  - #### [⠀Sensor Library⠀](###Sensor Library)
+  - #### Sensor Library
 
-    - [CameraHandler](####CameraHandler (USB and RPi Camera Support))
-    - [gpsNavi](####gpsNavi (BerryGPS-IMU))
+    - CameraHandler
+    - gpsNavi
 
-  - #### [⠀ME Integration⠀](###ME Integration)
+  - #### ME Integration
 
-    - [SleepyPi](####SleepyPi)
-    - [escController](####escController)
-    - [Navigation Script](####Navigation Script)
+    - SleepyPi
+    - escController
+    - Navigation Script
 
-  - #### [⠀Testing⠀](###Testing)
+  - #### Testing
 
 # Overview
 
