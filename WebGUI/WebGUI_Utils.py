@@ -4,6 +4,17 @@ import sys
 import requests
 
 
+# WebGUI_Utils.py
+#
+# Last updated: 04/26/2022
+# Contains utility functions that are used by the Flask script. These functions create packets that can
+# be sent to the robot using the CommSys.
+#
+
+
+# Create packet for movement command
+
+
 def sendDirectionCommand(direction, speed, commHandler):
     if(direction == "turnLeft"):
         left = -speed
@@ -22,6 +33,9 @@ def sendDirectionCommand(direction, speed, commHandler):
         right = 0
     else:
         return
+
+    # Send values for left and right motor
+
     motor_command = struct.pack('f', left) + \
         struct.pack('f', right) + bytes([0])
 
@@ -32,6 +46,7 @@ def sendDirectionCommand(direction, speed, commHandler):
     return f"Robot {direction}"
 
 
+# Create packet for autonomous navigation
 def sendMoveToCommand(latitude, longitude, commHandler):
     move_command = struct.pack('f', latitude) + \
         struct.pack('f', longitude) + bytes([0])
@@ -41,21 +56,7 @@ def sendMoveToCommand(latitude, longitude, commHandler):
     commHandler.send_packet(motor_command_packet)
     return f"Robot moving to ({round(latitude,4)}, {round(longitude,4)})"
 
-
-def sendMotorSwitchCommand(motor, commHandler):
-    print(motor)
-    if(motor == "Wave-Glider"):
-        motor_switch_packet = Packet(
-            MsgType.MTR_SWITCH_CMD, 0, bytes([0]), False)
-
-    elif(motor == "Heave-Plate"):
-        motor_switch_packet = Packet(
-            MsgType.MTR_SWITCH_CMD, 0, bytes([1]), False)
-    else:
-        return f"Invalid motor"
-
-    commHandler.send_packet(motor_switch_packet)
-    return f"Robot switching to {motor}"
+# Turn coordinates into strings
 
 
 def getStringCoordinates(data):
@@ -74,6 +75,8 @@ def getStringCoordinates(data):
 
     return latitude, longitude
 
+# Make sure coordinates are valid
+
 
 def checkCoordinates(latitude, longitude):
     if(latitude == "" and longitude == ""):
@@ -84,6 +87,8 @@ def checkCoordinates(latitude, longitude):
         return "Invalid longitude"
     else:
         return None
+
+# Turn live control on or off
 
 
 def liveControl(enable, commHandler):

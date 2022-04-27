@@ -6,20 +6,19 @@ var speed = 50;
 var refreshTime = 1000 // Every second
 var liveControl = false;
 
-var robot_flask_url = "http://localhost:5000/"
-
-var isPageClosed = false;
-
 var map, currLocationMarker, goToMarker;
 
 $(document).ready(function () {
     var pressedKey = -1;
+    //Initialize everything
     addMessage("Log:", "b")
     initMap();
     checkLiveControl();
+    //Get corrent num users
     sendOpenWindow();
     sendGetNumUsers();
 
+    //Call refersh function periodically
     var refreshInterval = setInterval(refresh, refreshTime);
 
     //H264 PLAYER BELOW FROM https://www.codeinsideout.com/blog/pi/stream-picamera-h264/
@@ -62,6 +61,7 @@ $(document).ready(function () {
     wsData.binaryType = "arraybuffer";
     wsData.onopen = function (e) {
         console.log("Data Client connected");
+        //Handle all messages
         wsData.onmessage = function (msg) {
             var data = JSON.parse(msg.data);
             var type = data["type"];
@@ -93,10 +93,12 @@ $(document).ready(function () {
         console.log("Data Client disconnected");
     };
 
+    //Decrease the number of users when window is closed
     window.onbeforeunload = function () {
         navigator.sendBeacon("{{ url_for("closeWindow") }}");
     };
 
+    //Request live control
     $("#live_control").click(function () {
         liveControl = !liveControl
         var data = [
@@ -117,6 +119,7 @@ $(document).ready(function () {
         checkLiveControl();
     });
 
+    //Send coordinates for autonomous navigation
     $("#move").click(function () {
         var lat_dir = document.querySelector('input[name="latitude_dir"]:checked').value[0];
         var long_dir = document.querySelector('input[name="longitude_dir"]:checked').value[0];
@@ -125,6 +128,8 @@ $(document).ready(function () {
         $("#lat").val("")
         $("#long").val("")
     });
+
+    //Movement controls
 
     $("#left").mousedown(function () {
         if (moving != "turnLeft") {
@@ -225,15 +230,18 @@ $(document).ready(function () {
         deleteMarker();
     });
 
+    //Speed slider
     document.getElementById("speed").oninput = function () {
         updateSpeed(this.value);
     }
 
+    //Place markers for coordinates
     google.maps.event.addListener(map, 'click', function (event) {
         placeMarker(event.latLng);
     });
 });
 
+//Only show live controls sometimes
 function checkLiveControl() {
     var moveCard = document.getElementById("move-card");
     var video = document.getElementById("viewer")
@@ -249,6 +257,7 @@ function checkLiveControl() {
 
 }
 
+//Refresh all data
 function refresh() {
     if (moving != "stop") {
         sendMoveCommand(moving);
@@ -263,6 +272,7 @@ function refresh() {
     updateCurrentLocation();
 }
 
+//Update button texts
 function updateSpeed(newSpeed) {
     $("#speed_text").text("Speed: " + newSpeed + "%")
 }
@@ -273,6 +283,7 @@ function updateMoveButtonsText() {
     $("#backward").html(moving == "moveBackward" ? "Stop" : "Backward");
 }
 
+//Remove marker from map
 function deleteMarker() {
     goToMarker.setVisible(false);
     var bounds = new google.maps.LatLngBounds();
@@ -286,6 +297,7 @@ function deleteMarker() {
     $("#delete_marker").hide();
 }
 
+//Put marker on map and get coordinates
 function placeMarker(location) {
 
     goToMarker.setPosition(location)
@@ -322,6 +334,7 @@ function placeMarker(location) {
     map.fitBounds(bounds);
 }
 
+//Update number of users when window is open
 function sendOpenWindow() {
     console.log("SENDING OPEN WINDOW")
     $.ajax({
@@ -335,7 +348,7 @@ function sendOpenWindow() {
     });
 }
 
-
+//Get number of active users
 function sendGetNumUsers() {
     $.ajax({
         type: 'POST',
@@ -349,6 +362,7 @@ function sendGetNumUsers() {
     });
 }
 
+//Send coordinates for autonomous navigation
 function sendGoToCommand(lat, long, lat_dir, long_dir) {
     if (lat_dir == 'S') {
         lat = '-' + lat
@@ -376,19 +390,6 @@ function sendGoToCommand(lat, long, lat_dir, long_dir) {
     });
 }
 
-function sendSwitchMotorCommand(motor) {
-    $.ajax({
-        type: 'POST',
-        url: "{{ url_for("switchMotor") }}",
-        data: motor,
-        contentType: "text",
-        dataType: "text",
-        error: function (XMLHttpRequest, textStatus, errorThrown) {
-            addMessage("Switch motor" + " failed: " + XMLHttpRequest.status + " " + errorThrown, 'r');
-        }
-    });
-}
-
 function sendMoveCommand(command) {
     var data = [
         {
@@ -412,6 +413,7 @@ function sendMoveCommand(command) {
     });
 }
 
+//Add message to log
 function addMessage(messageString, messageType) {
     if (messageType == "r") {
         var $p = $('<p style="color:red; line-height:100%;"></p>');
@@ -453,6 +455,8 @@ function initMap() {
 
     updateCurrentLocation();
 }
+
+//Update data
 
 function updateBoatMarker() {
     currLocationMarker.setPosition(currLocation)

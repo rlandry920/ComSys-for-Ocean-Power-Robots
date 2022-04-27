@@ -15,6 +15,20 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from CommSys.Packet import Packet, SYNC_WORD, MIN_PACKET_SIZE, PacketError
 
+# EmailHandler.py
+#
+# Last updated: 04/26/2022
+# Allows the landbase to communiate with satellite via email. Packets can be sent using write_packet and
+# an email will be created and sent using the gmail information that it is provided. Any messges sent from
+# the satellite will be delievered to the email registered with the satellite. The email will have an attatchment
+# that contains the body of the message. The read_packet function that will read any unread emails and if they are
+# from the iridium service, it will try to read the message and turn it in to a packet that is able to be read
+# by the CommSys
+#
+# TODO List:
+# - Verify with satellite
+
+
 logger = logging.getLogger(__name__)
 
 
