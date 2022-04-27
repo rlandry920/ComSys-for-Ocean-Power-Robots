@@ -121,7 +121,7 @@ class Packet:
             self.length.to_bytes(length=NUM_LEN_BYTES, byteorder='big') + \
             self.data
 
-    # Mutes own checksum field, then calculated CRC-16 checksum of packet.
+    # Mutes own checksum field, then returns calculated CRC-16 checksum of packet.
     def calc_checksum(self):
         temp = self.checksum
         self.checksum = bytes(2)  # Set own, mutable checksum to 0

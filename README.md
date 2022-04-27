@@ -1,5 +1,41 @@
 # Communication System for Ocean Power Robots
 
+## Table of Contents
+
+- ### [⠀Overview⠀](#Overview)
+
+  - #### [⠀Installation⠀](##Installation)
+
+  - #### [⠀Usage⠀](##Usage)
+
+- ### [⠀Software Design⠀](##Software Design)
+
+  - #### [⠀Comm. System⠀](###Comm System)
+
+    - [Packet](####Packet)
+    - [CommHandler](####CommHandler)
+    - [SerialHandler](####SerialHandler (previously RadioHandler))
+    - [RockBlockHandler](####RockBlockHandler)
+    - [EmailHandler](####EmailHandler)
+
+  - #### [⠀WebGUI⠀](###Webgui)
+
+    - [WebGUI Flask](####WebGUI Flask)
+    - [WebGUI Utils](####WebGUI Utils)
+
+  - #### [⠀Sensor Library⠀](###Sensor Library)
+
+    - [CameraHandler](####CameraHandler (USB and RPi Camera Support))
+    - [gpsNavi](####gpsNavi (BerryGPS-IMU))
+
+  - #### [⠀ME Integration⠀](###ME Integration)
+
+    - [SleepyPi](####SleepyPi)
+    - [escController](####escController)
+    - [Navigation Script](####Navigation Script)
+
+  - #### [⠀Testing⠀](###Testing)
+
 # Overview
 
 Repository for Virginia Tech ECE Major Design Experience Team "Triton" (Fall 2021- Spring 2022).
@@ -60,9 +96,51 @@ Our code can be separated into 5 main categories:
 
 ![](https://github.com/rlandry920/ComSys-for-Ocean-Power-Robots/blob/main/Resources/triton_software-dep-chart.png?raw=true)
 
-## Comm. System
+------
+
+## Comm System
 
 ### Packet
+
+`Packet.py` describes the **<u>foundational data structure</u>** used by our communication system. Uses a datagram header to allow applications to interpret binary data contained w/i and ensure reliable data transfer.
+
+This header contains a 4-byte `preamble` (also referred to as a "sync word") to provide a clear indication in a byte stream where a packet begins; a 1-byte `message type` label to allow interpretation of binary data; a 3-byte packet `ID` to uniquely identify a packet in RDT protocols, a 2-byte `checksum` to ensure data integrity; and a 2-byte `length` field to indicate how long the appended binary data is in bytes. Below is a diagram of this datagram header.
+
+![](https://github.com/rlandry920/ComSys-for-Ocean-Power-Robots/blob/main/Resources/triton_packet-diagram.png?raw=true)
+
+Packet.MsgType Enumerated Values
+
+| Message Type                     | Hexadecimal Value | Description                                                  |
+| -------------------------------- | ----------------- | ------------------------------------------------------------ |
+| Null                             | 0x00              | Data w/i packet is meaningless and should be ignored         |
+| Handshake                        | 0x01              | Used by comm. system to initialize a connection. Forwarded to high-level applications to notify a connection has been made. |
+| Handshake Response               | 0x02              | Used by comm. system to confirm a connection. Forwarded to high-level applications to notify a connection has been made. Necessary to use a separate “response” type because handshake behavior is stateless. |
+| Selective Acknowledgement (SACK) | 0x03              | Used by comm. system to acknowledge a packet has been received by other party during a RDT connection. |
+| Duplicate Ack.(DACK)             | 0x04              | Used by comm. system to acknowledge a packet that has already been acknowledged. Interpreted the same as SACK by the recipient of the DACK. Useful for debugging purposes. |
+| Cumulative Ack. (CACK)           | 0x05              | Used by comm. system to acknowledge all recently transmitted packets with and below the provided ID. *Currently not implemented.* |
+| Text                             | 0x06              | General text data.                                           |
+| Info                             | 0x07              | Non-critical application data.                               |
+| Error                            | 0x08              | Relay critical application failures.                         |
+| GPS Data                         | 0x09              | Data contains robot’s longitude, latitude, and compass information. |
+| Image                            | 0x0A              | Data is a H264 encoded video frame for live video.           |
+| Motor Command                    | 0x0B              | Data contains two float values ranging from -1 to 1 to directly power motors. Used for live control. |
+| GPS Command                      | 0x0C              | Data contains GPS longitude and latitude, sent by the land base, to which the robot should autonomously navigate. |
+| Motor Switch Command             | 0x0D              | Manually selects between the robot's heave-plate and wave-glider modes. *Unused.* |
+| Control Request                  | 0x0E              | Indicates that landbase wishes to start/stop live control. Robot will begin/stop sending live video frames and processing motor commands. |
+| UDP                              | 0x0F              | Data is from a 3rd party UDP packet to be forwarded to the other party. *For demonstration purposes currently*; *planned for AROV integration.* |
+| Heartbeat Request                | 0x10              | Sent from land base periodically test comm. link with expectation that robot will respond with a heartbeat. Land base initiates this behavior (instead of robot autonomously sending heartbeats) to allow land base to monitor latency without time synchronization with robot. |
+| Heartbeat                        | 0x11              | Response to heartbeat request. Contains status information like current state (idle, live control, autonomous navigation), GPS data, compass direction, and battery percentage. |
+| Comm. Change                     | 0x12              | Forces the other party to change communication mode to the one specified in the data. *Unused*. |
+
+#### API
+
+Packet.Packet
+
+| Function        | Description                                                  | Parameters                                                   |
+| --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| *__init\_\_*    | Parameterized Constructor. Two constructor modes: "direct" and "from binary".<br />Specifying `ptype` will directly set fields of packet to the specified parameters. Does ***not*** do any consistency checking, so it is recommended to only set `ptype` and `data`. <br />Specifying `data` and setting ptype to MsgType.NULL will perform the "from binary" constructor, attempting to set fields based on the binary data within `data` raises an exception if formatting of data does not match expectations. | `ptype`: Packet type, sets the message type and invokes "direct" constructor if not MsgType.NULL. default=MsgType.NULL<br />`pid`: Sets ID of the packet, will likely be overwritten by CommHandler if needed, so specifying it is seldom necessary. default=0<br />`data`: Binary string to contstruct packet from if using "from binary" constructor. If using "direct" constructor sets the *length* and *data* fields of the packet accordingly. default=b''<br />`calc_checksum`: Boolean indicating whether the checksum should be calculated and set at the end of packet construction. default=False<br />`cmode`: Lets CommHandler know over which communication link packet should be set. *Should* only be set to either None, CommMode.RADIO, or CommMode.SATELLITE. Specifying None will allow the CommHandler to decide where the packet goes. default=None |
+| *to_binary*     | Returns the binary string of the packet object.              | None                                                         |
+| *calc_checksum* | Mutes own checksum field, then returns calculated CRC-16 checksum of packet. | None                                                         |
 
 ### CommHandler
 
@@ -86,39 +164,187 @@ CommHandler.CommHandler
 
 The current implementation of the CommHandler uses two threads, update_egress & update_ingress, to asynchronously send from / receive to the egress and ingress queues respectively. Whenever an application calls `CommHandler.send_packet()` or `CommHandler.recv_packet()`, it is only interacting with the egress & ingress queues.
 
+Uses Selective Repeat ARQ standard to ensure reliable transmission of packets over an unreliable link, e.g. radio. Standard use 'windows' with which multiple in-flight packets may be sent to improve throughput. For more details on Selective Repeat ARQ, visit https://www.geeksforgeeks.org/sliding-window-protocol-set-3-selective-repeat/
 
+<img src="https://media.geeksforgeeks.org/wp-content/uploads/Sliding-Window-Protocol.jpg" alt="Geek-for-Geeks Selective Repeat ARQ Example" style="zoom:50%;" />
 
 ### SerialHandler (previously RadioHandler)
 
 `SerialHandler.py` is a class-based paradigm to send/receive data over a serial/UART channel. For our purposes, it is used to handle <u>**sending/receiving packets using the RFD900x**</u>.
 
+Uses serial.threaded.protocol to implement asynchronous serial events. Specifically we use an asynchronous reader thread to read from the serial device and create packets when possible. See [pyersial.threaded readthedocs](https://pyserial.readthedocs.io/en/latest/pyserial_api.html#module-serial.threaded) more details on threaded implementation.
+
+The below table describes pin connections between the Raspberry Pi (RPi) and RFD900x Radio Modem. For reference on RFD900x pins, visit: http://files.rfdesign.com.au/Files/documents/RFD900x%20DataSheet.pdf
+
+| RaspberryPi => RFD900x Connection              | Description                                |
+| ---------------------------------------------- | ------------------------------------------ |
+| 5V => PIN3<br />GND => PIN1                    | Allows RPi to power RFD900x                |
+| TX (GPIO 14) => PIN7<br />RX  (GPIO 15)=> PIN9 | UART Communication between RPi and RFD900x |
+
+#### API
+
+SerialHandler.SerialHandler
+
+| Function       | Description                                                  | Parameters                      |
+| -------------- | ------------------------------------------------------------ | ------------------------------- |
+| *__init\_\_*   | Constructor                                                  | None                            |
+| *start*        | Starts asynchronous reader thread.                           | None                            |
+| *close*        | Stops asynchronous reader thread.                            | None                            |
+| *write_packet* | Writes binary string of provided packet to the serial device. | `packet`: Packet object to send |
+| *read_packet*  | Pops topmost read packet from received packets queue. Returns none if queue is empty. | None                            |
+
 ### RockBlockHandler
 
-### Email Handler
+Coverts functions found in 3rd party API, rockBlock.py, into a format the matches our 'abstract' handler format, i.e. has callable write_packet and read_packet functions. Uses a threading to continously check the RockBLOCK for any new packets. See [MakerSnake rockBlock GitHub](https://github.com/MakerSnake/pyRockBlock) for more details on threaded implementation.
 
+Assumes RockBLOCK is connected to the RaspberryPi via a USB to TTL cable operating on \dev\ttyUSB0.
 
+#### API
+
+| Function       | Description                                                  | Parameters                      |
+| -------------- | ------------------------------------------------------------ | ------------------------------- |
+| *__init\_\_*   | Constructor                                                  | None                            |
+| *start*        | Starts asynchronous reader thread.                           | None                            |
+| *close*        | Stops asynchronous reader thread.                            | None                            |
+| *write_packet* | Writes binary string of provided packet to the serial device. | `packet`: Packet object to send |
+| *read_packet*  | Pops topmost read packet from received packets queue. Returns none if queue is empty. | None                            |
+
+### EmailHandler
+
+@Ryan TODO (see SerialHandler and RockBlockHandler for examples)
+
+| Function     | Description | Parameters |
+| ------------ | ----------- | ---------- |
+| *__init\_\_* | Constructor | None       |
+
+------
 
 ## WebGUI
 
+@Ryan TODO
 
+Summary / high-level design details
+
+### WebGUI Flask
+
+Summary
+
+API (if applicable)
+
+### WebGUI Utils
+
+Summary
+
+| Function     | Description | Parameters |
+| ------------ | ----------- | ---------- |
+| *__init\_\_* | Constructor | None       |
+
+------
 
 ## Sensor Library
 
 ### CameraHandler (USB and RPi Camera Support)
 
+Uses threading to take video frames and encode them for transmission. Supports either RaspberryPi Camera (for h264 encoding) or a USB Camera (for MJPEG encoding, depreciated - no longer supported by WebGUI).
+
+| Function     | Description                                                  | Parameters                                                   |
+| ------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| *__init\_\_* | Constructor                                                  | `comm_handler`: Used to allow CameraHandler to send packets directly to egress queue without need application to manage encoded video frames.<br />`camera`: Accepts either a Picamera or USB camera to retrieve video frames from. Automatically selects between H264 and MJPEG encoding formats respectively. If None is passed, CameraHandler will use a default Picamera. |
+| *start*      | Starts frame fetching and encoding thread. Video frames will automatically be placed into egress queue at start. | None                                                         |
+| *Stop*       | Stops                                                        |                                                              |
+
 ### gpsNavi (BerryGPS-IMU)
 
 @Qianhui TODO
 
+Summary
+
+| Function     | Description | Parameters |
+| ------------ | ----------- | ---------- |
+| *__init\_\_* | Constructor | None       |
+
+------
+
 ## ME Integration
+
+This category is used for a sundry of applications, but the primary two are navigation/locomotion and power management, handled within "Navigation Script"/"escController" and SleepyPi respectively.
 
 ### SleepyPi
 
+The SleepyPi class defined in `SleepyPi.py` assumes that a SleepyPi running `LowVoltageShutdown_Triton.ino` is connected to the robot's Raspberry Pi using the pins below. Because the SleepyPi uses the same GPIO connector as the RaspberryPi the pins on both are the same
+
+| RaspberryPi - SleepyPi Connection | Description                                                  |
+| --------------------------------- | ------------------------------------------------------------ |
+| 5V & Ground                       | Allows SleepyPi to power RPi w/ 12-30V battery.              |
+| I2C SDA (GPIO 2) and SCL (GPIO 3) | Allows SleepyPi to advertise voltages to RPi.                |
+| GPIO 24                           | SleepyPi will raise this pin high to notify the RPi that it should safely shutdown. Leaving this pin floating may cause the RPi to fail to boot! |
+| GPIO 25                           | RPi will drive this pin high to notify the SleepyPi that it is running. |
+
+#### API
+
+SleepyPi.SleepyPi
+
+| Function         | Description                                                  | Parameters                                                   |
+| ---------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| *__init\_\_*     | Constructor. Drives GPIO 25 high to notify SleepyPi that script is running. | `shutdown_target`: Callable function that will be executed if a shutdown signal is received during *check_shutdown()*. |
+| *read_voltage*   | Uses I2C bus to obtain most recent battery voltage reading from SleepyPi. Returns the float value from the SleepyPi or None if I2C communication failed. | None                                                         |
+| *check_shutdown* | Returns whether GPIO 24 was driven high. Calls `shutdown_target` if specified in constructor. | None                                                         |
+
+#### LowVoltageShutdown_Triton.ino
+
+Altered version of the `LowVoltageShutdown.ino` example in the SleepyPi Arduino library.
+
+Sends shutdown signal to Raspberry Pi if battery voltage drops below 24.12 V. For two car batteries (whose full charge is expected to be 25.2 V), 24.12V is ~20% battery. Once the RPi is off, i.e. no longer driving GPIO 25, the SleepyPi cuts power. If measured voltage drops below 23.5 V, power is cut immediately.
+
+Uses debouncing to ensure noise doesn't cause sudden shutdowns.
+
+Refer to [this guide](https://spellfoundry.com/docs/programming-the-sleepy-pi-as-a-standalone-board/) for details on programming the SleepyPi.
+
 ### escController
+
+@KurbyTODO
+
+Summary
+
+| Function     | Description | Parameters |
+| ------------ | ----------- | ---------- |
+| *__init\_\_* | Constructor | None       |
 
 ### Navigation Script
 
 @Ryan/@Kurby TODO
 
+Summary
+
+API (if applicable)
+
+------
+
 ## Testing
 
+### CommTestbench
+
+We created a testing script `CommTestbench.py` to evaluate the performance of our communication system over radio. It implements three tests: latency, packet loss, and throughput. The script either accepts arguments or user input when ran with `python CommTestbench.py`
+
+Script with same parameters (except for sender/receiver) must be ran on both Raspberry Pis.
+
+<u>Arguments:</u>
+
+- `-d` or `--debug` Enables debug output
+- `-t` or `--throughput` Selects throughput test
+- `-p` or `--packetloss` Selects packet loss test
+- `-l` or `--latency` Selects latency test
+- `-s` or `--sender` Runs test as the sender
+- `-r` or `--receiver` Runs test as receiver
+- `-n [value]` or `--number [value]` Sets number of packets to be sent during test to *value*
+- `--size` Set size (in bytes) of each packet sent during test to *value*
+
+<u>Example usage:</u>
+
+On sender:
+
+```python CommTestbench.py --throughput -s -n 20 --size 256 ```
+
+On receiver:
+
+```python CommTestbench.py --throughput -r -n 20 --size 256```

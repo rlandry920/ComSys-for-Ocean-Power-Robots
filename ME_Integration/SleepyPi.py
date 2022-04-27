@@ -10,6 +10,9 @@ import logging
 # Last updated: 04/18/2022 | Primary Contact: Michael Fuhrer, mfuhrer@vt.edu
 # Object orientated approach to allow communication between SleepyPi board and robot script through
 # I2C and GPIO pins.
+#
+# TODO List
+# - Use debouncing on read voltages to reduce noise
 
 logger = logging.getLogger(__name__)
 
