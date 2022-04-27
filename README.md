@@ -1,11 +1,5 @@
 # Communication System for Ocean Power Robots
 
-------
-
-[TOC]
-
-------
-
 # Overview
 
 Repository for Virginia Tech ECE Major Design Experience Team "Triton" (Fall 2021- Spring 2022).
@@ -64,7 +58,7 @@ Our code can be separated into 5 main categories:
 - **<u>Sensor Library</u>**: Object-orientated paradigms of accessing sensor data on robot.
 - **<u>Mechanical Engineering (ME) Integration</u>**: Contains implementation of motor controls and power management.
 
-![](.\Resources\triton_software-dep-chart.png)
+![](https://github.com/rlandry920/ComSys-for-Ocean-Power-Robots/blob/main/Resources/triton_software-dep-chart.png?raw=true)
 
 ## Comm. System
 
