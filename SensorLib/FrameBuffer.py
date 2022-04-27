@@ -1,3 +1,4 @@
+# Used for PiCamera H264 Streaming
 # followed tutorial by https://www.codeinsideout.com/blog/pi/stream-picamera-h264/
 import io
 from threading import Condition

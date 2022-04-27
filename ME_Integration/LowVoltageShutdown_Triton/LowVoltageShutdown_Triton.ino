@@ -1,21 +1,10 @@
-// 
-// This example implements a low voltage disconnect function like a UPS. When
-// supply voltage falls below the low threshold for 30 seconds, the Arduino
-// signals the RPi to shutdown. When the voltage recovers to above the high
-// threshold, the RPi boots.
+// LowVoltageShutdown_Triton.ino
 //
-// The low voltage shutdown can be overridden by pressing the button. The RPi
-// will wake on button press and stay powered for one hour. Extend the time to
-// one hour again by pressing the button. The override is ignored when voltage
-// is below the force off voltage.
+// Last Updated: 04/18/22 | Primary Contact: Michael Fuhrer, mfuhrer@vt.edu
 //
-// To shutdown the RPi, hold the button for 2-8 seconds. If the button is held
-// down more than 8 seconds the Sleepy Pi will cut the power to the RPi
-// regardless of any handshaking.
-// 
-// While powered, the supply voltage prints to the serial monitor twice
-// per second.
-//
+// Based off of LowVoltageShutdown example from SleepyPi2 arduino library.
+// Constantly measures battery voltage and may advertise readings to Raspberry Pi over I2C. Shuts down RPi if
+// voltage drops below specified thresholds.
 
 // **** INCLUDES *****
 #include "SleepyPi2.h"
@@ -28,7 +17,7 @@
 
 #define POWER_ON_VOLTAGE    24.2
 #define POWER_OFF_VOLTAGE   24.12
-#define FORCE_OFF_VOLTAGE   23.96
+#define FORCE_OFF_VOLTAGE   23.5
 
 #define LOW_VOLTAGE_TIME_MS 10000ul    // 10 seconds
 
@@ -49,14 +38,6 @@ FLOATUNION_t supply_voltage;
 void alarm_isr()
 {
     alarmFired = true;
-}
-
-void button_isr()
-{
-  // Use in case of RTC initialization failure.
-  SleepyPi.enablePiPower(true);
-  SleepyPi.enableExtPower(true);
-  digitalWrite(LED_PIN, HIGH);
 }
 
 void setup()
@@ -91,7 +72,7 @@ void loop()
     pi_running = SleepyPi.checkPiStatus(true);  // Cut Power if we detect Pi not running
     if(pi_running == false){
         delay(500);
-        SleepyPi.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF); 
+        Serial.println("Pi not running...");
         pi_running = SleepyPi.checkPiStatus(false);
     }
 
@@ -107,10 +88,11 @@ void loop()
         SleepyPi.ackTimer1();
         alarmFired = false;
     }
-
+    Serial.println("here");
     // Boot or shutdown based on supply voltage
     delay(10);  // voltage reading is artificially high if we don't delay first
     supply_voltage.val = SleepyPi.supplyVoltage();
+    Serial.println(supply_voltage.val);
     if(pi_running == true){
         if(supply_voltage.val > POWER_OFF_VOLTAGE){
             // Voltage is normal; reset the low voltage counter
@@ -122,9 +104,10 @@ void loop()
         // Check for low voltage
         // Allow override with the button during low voltage state,
         // but not during very low voltage / force off state.
-        if(time - timeVeryLow > LOW_VOLTAGE_TIME_MS || (
-           time - timeLow > LOW_VOLTAGE_TIME_MS)){
+        if(time - timeVeryLow > LOW_VOLTAGE_TIME_MS ||
+           time - timeLow > LOW_VOLTAGE_TIME_MS){
             // Start a shutdown
+            Serial.println("Shutting down");
             SleepyPi.piShutdown();
             SleepyPi.enableExtPower(false);
         }

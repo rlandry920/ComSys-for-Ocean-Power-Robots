@@ -1,8 +1,7 @@
 import logging
-from multiprocessing import Process
 from threading import Thread
 import numpy as np
-from CommSys.CommHandler import CommHandler, CommMode
+from CommSys.CommHandler import CommHandler
 from CommSys.Packet import Packet, MsgType
 import cv2
 import time
@@ -10,9 +9,15 @@ from SensorLib.USBCamera import USBCamera
 from picamera import PiCamera
 from SensorLib.FrameBuffer import FrameBuffer
 
+# CameraHandler.py
+#
+# Last updated: 04/11/2022 | Primary Contact: Michael Fuhrer, mfuhrer@vt.edu
+# Uses threading to take video frames and encode them for transmission. Supports either RaspberryPi Camera (for
+# h264 encoding) or a USB Camera (for MJPEG encoding, depreciated - no longer supported by WebGUI).
+
 h264_resolution = '160x120'
 h264_framerate = 4
-h264_bitrate = 57600
+h264_bitrate = 28800
 
 jpeg_resolution = (60, 30)
 jpeg_framerate = 2
@@ -51,9 +56,9 @@ class CameraHandler:
         frame_buffer = FrameBuffer()
         self.camera.start_recording(frame_buffer, format='h264', profile="baseline", bitrate=h264_bitrate)
         self.camera.request_key_frame()
-        last_key_timestamp = time.time()  # TODO testing keyframe requests
+        last_key_timestamp = time.time()
         while not self.stopped:
-            if time.time() - last_key_timestamp > 1:  # TODO keyframe every second
+            if time.time() - last_key_timestamp > 1:    # Get a keyframe every second, improves visual quality
                 self.camera.request_key_frame()
                 last_key_timestamp = time.time()
 

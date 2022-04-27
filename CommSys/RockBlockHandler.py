@@ -3,14 +3,22 @@ import logging
 from CommSys.CommMode import CommMode
 from CommSys.Packet import Packet, MsgType, PacketError
 from threading import Lock, Thread
+import time
+
+# RockBlockHandler.py
+#
+# Last updated: 04/26/2022 | Primary Contact: Michael Fuhrer, mfuhrer@vt.edu
+# Coverts functions found in 3rd party API, rockBlock.py, into a format the matches our 'abstract' handler format,
+# i.e. has callable write_packet and read_packet functions. Uses a threading to continously check the RockBLOCK for
+# any new packets.
+#
+# TODO List:
+# - Validate implementation
+# - Automatically resend packet to RockBLOCK if sendMessage fails (should be non-blocking)
 
 SER_DEVICE = "dev/ttyUSB0"
 
 logger = logging.getLogger(__name__)
-
-# Timeout does NOT represent the time it takes the other party to acknowledge the packet. RockBLOCK will acknowledge
-# the packet locally because it is assumed to be a reliable link.
-SAT_TX_TIMEOUT = 10
 
 
 class RockBlockHandler(Thread):
@@ -23,6 +31,7 @@ class RockBlockHandler(Thread):
         self.running = True
         while self.running:
             self.proto.message_check()
+            time.sleep(3)  # Wait 3s before checking again
 
     def write_packet(self, packet: Packet):
         self.proto.write_packet(packet)
@@ -38,6 +47,7 @@ class RockBlockHandler(Thread):
         self.join()
 
 
+# Using a special protocol to handle certain asynchronous events during an exchange with RockBLOCK device.
 class ISBDPacketProtocol(rockBlock.rockBlockProtocol):
     def __init__(self):
         # does NOT represent the time it takes for landbase to send an ACK
@@ -51,6 +61,7 @@ class ISBDPacketProtocol(rockBlock.rockBlockProtocol):
     def message_check(self):
         self.rb.messageCheck()
 
+    # Uses data found in asynchronous rx event to create packet.
     def rockBlockRxReceived(self, mtmsn, data):
         try:
             packet = Packet(data=self.read_buf, cmode=CommMode.SATELLITE)

@@ -7,7 +7,12 @@ value = 5.13482358
 value2 = 6512.65165
 b = struct.pack('f', value)
 
-# Triton Datagram
+# Packet.py
+#
+# Last updated: 04/12/2022 | Primary Contact: Michael Fuhrer, mfuhrer@vt.edu
+# Triton Datagram implementation. Contains a low-overhead packet header and functions to convert packets
+# to/from byte strings.
+#
 # Bytes: 0        1        2        3
 #       ┌───────────────────────────────────┐
 #       | ---------- SYNC_WORD ------------ |
@@ -15,7 +20,6 @@ b = struct.pack('f', value)
 #       | --- Checksum --- | --- Length ----|
 #       | -------------- Data ------------- |
 #       |                 ...               |
-
 #       └───────────────────────────────────┘
 
 NUM_SYNC_BYTES = 4
@@ -34,7 +38,7 @@ SYNC_WORD = b'\xAA' * NUM_SYNC_BYTES
 class PacketError(Exception):
     pass
 
-
+# Enumerated type values to represent data types Comm. System / applications may need to uniquely handle.
 class MsgType(Enum):
     NULL = b'\x00'
     HANDSHAKE = b'\x01'  # Starts flow-control based communication
@@ -65,7 +69,8 @@ class Packet:
     def __init__(self, ptype: MsgType = MsgType.NULL, pid=0, data: bytes = b'', calc_checksum=False, cmode:CommMode=None):
         self.cmode = cmode  # Used by CommHandler to a. force tx of packet across medium or b. indicate which medium
                             # packet was rx'd through.
-        # Parameterized Constructor
+
+        # Parameterized Constructor, requires only ptype be set
         if ptype != MsgType.NULL:
             # Check data length to ensure it is < 2^16
             if len(data) > MAX_DATA_SIZE:
@@ -107,6 +112,7 @@ class Packet:
             raise PacketError(f'Failed to create packet, '
                               f'invalid parameters.')
 
+    # Returns byte string representing the packet
     def to_binary(self):
         return SYNC_WORD + \
             self.type.value + \
@@ -115,6 +121,7 @@ class Packet:
             self.length.to_bytes(length=NUM_LEN_BYTES, byteorder='big') + \
             self.data
 
+    # Mutes own checksum field, then calculated CRC-16 checksum of packet.
     def calc_checksum(self):
         temp = self.checksum
         self.checksum = bytes(2)  # Set own, mutable checksum to 0
@@ -124,7 +131,6 @@ class Packet:
 
 
 # Global checksum function for any bytes object
-
 def carry_around_add(a, b):
     c = a + b
     return (c & 0xffff) + (c >> 16)
@@ -139,6 +145,7 @@ def calc_checksum(msg):
     return int.to_bytes(~s & 0xffff, NUM_CKSM_BYTES, 'big')
 
 
+# Old CRC-16 checksum function, depreciated.
 # def calc_checksum(data: bytes):
 #     checksum_matrix = np.append(list(data), [0]*(len(data) % NUM_CKSM_BYTES))
 #     checksum_matrix = np.reshape(checksum_matrix, [-1, 2])
@@ -155,7 +162,7 @@ def calc_checksum(msg):
 #
 #     return checksum.to_bytes(NUM_CKSM_BYTES, byteorder='big')
 
-
+# Early packet construction tests.
 if __name__ == "__main__":
     p0 = Packet(ptype=MsgType.TEXT, data=b'Hello world!')
     print(p0.to_binary())

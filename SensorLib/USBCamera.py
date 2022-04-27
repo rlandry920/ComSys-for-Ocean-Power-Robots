@@ -1,11 +1,13 @@
 from threading import Thread
 import cv2
 
-
+# USBCamera.py
+#
+# Last updated: 03/02/2022 | Primary Contact: Michael Fuhrer, mfuhrer@vt.edu
 # Multi-threaded approach to gathering images from USB camera following tutorial @
 # https://www.pyimagesearch.com/2015/12/28/increasing-raspberry-pi-fps-with-python-and-opencv/
 
-# Used in CameraHandler.py
+# Depreciated
 
 class USBCamera:
     def __init__(self):

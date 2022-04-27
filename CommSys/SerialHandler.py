@@ -1,16 +1,20 @@
 import serial
 from serial.threaded import ReaderThread
-import time
 import logging
 from threading import Lock
 from CommSys.CommMode import CommMode
 from CommSys.Packet import Packet, SYNC_WORD, MIN_PACKET_SIZE, PacketError
 
+# SerialHandler.py, previously RadioHandler.py
+#
+# Last updated: 04/18/2022 | Primary Contact: Michael Fuhrer, mfuhrer@vt.edu
+# Uses serial.threaded library to implement an asynchronous handler of incoming bytes from a serial device.
+# See https://pyserial.readthedocs.io/en/latest/pyserial_api.html#module-serial.threaded for details.
+
 SER_DEVICE = "/dev/ttyAMA0"
 BAUD = 115200
 RTSCTS = False
 RADIO_TX_TIMEOUT = 2.5
-
 
 logger = logging.getLogger(__name__)
 
@@ -20,15 +24,15 @@ class SerialHandler(ReaderThread):
         self.reliable = False
         self.ser = serial.Serial(SER_DEVICE, baudrate=BAUD)
         super(SerialHandler, self).__init__(self.ser, SerialPacketProtocol)
-    
+
     def start(self):
         if not self.is_alive():
             super(SerialHandler, self).start()
-    
+
     def close(self):
         if self.is_alive():
             super(SerialHandler, self).close()
-    
+
     def write_packet(self, packet):
         if self.is_alive():
             return self.protocol.write_packet(packet)
@@ -38,6 +42,7 @@ class SerialHandler(ReaderThread):
             return self.protocol.read_packet()
 
 
+# Asynchronous event handler protocol
 class SerialPacketProtocol(serial.threaded.Protocol):
     def __init__(self):
         self.read_buf = b''
@@ -54,6 +59,9 @@ class SerialPacketProtocol(serial.threaded.Protocol):
         self.read_buf = b''
         super(SerialPacketProtocol, self).connection_lost(exc)
 
+    # Attempts to create a packet whenever new data is received. If a packet can be made, it is created, and the bytes
+    # used to make it are removed from read_buf. If an erronous packet was made, jump to the next SYNC WORD in read_buf
+    # (if one exists).
     def data_received(self, data):
         self.read_buf += data
 

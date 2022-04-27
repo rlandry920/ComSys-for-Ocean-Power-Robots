@@ -2,6 +2,12 @@ import socket
 import errno
 import netifaces as ni
 
+# AROVHandler.py, previously RadioHandler.py
+#
+# Last updated: 04/18/2022 | Primary Contact: Michael Fuhrer, mfuhrer@vt.edu
+# Proof-of-concept to demonstrate the robot forwarding any received data from a hypothetical AROV to the landbase.
+# Also used to advertise IP address of robot to help with remote SSH'ing.
+
 PORT = 1337
 
 

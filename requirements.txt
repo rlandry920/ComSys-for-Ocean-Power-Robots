@@ -1,0 +1,9 @@
+numpy~=1.22.1
+opencv-python~=4.5.5.62
+pyserial~=3.5
+netifaces~=0.11.0
+ws4py~=0.5.1
+systemd~=0.16.1
+smbus2~=0.4.1
+Flask~=2.1.1
+requests~=2.27.1

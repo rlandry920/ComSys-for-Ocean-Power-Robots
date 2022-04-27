@@ -92,18 +92,19 @@ def req_heartbeat():
         heartbeat_req = Packet(MsgType.HEARTBEAT_REQ)
         comm_handler.send_packet(heartbeat_req)
         heartbeat_ts = t
-    elif t - LOST_TIMER > heartbeat_ts:
+        heartbeat_sent = True
+    elif t - LOST_TIMER > heartbeat_ts and heartbeat_sent:
+        heartbeat_sent = False
         print("Lost connection to robot!")
+        logger.info("Lost connection to robot.")
         webgui_msg("Lost connection to robot!")
         webgui_state("LOST")
         restart_commhandler()
 
 
 def restart_commhandler():
-    print("Restarting CommHandler...")
-    comm_handler.stop()
-    print("Connecting to robot...")
-    comm_handler.start(mode=CommMode.HANDSHAKE)
+    print("Reconnecting to robot...")
+    comm_handler.reboot(CommMode.HANDSHAKE)
     print("Connected!")
     webgui_msg("Connected to robot!")
 
@@ -116,6 +117,7 @@ def digest_packet(packet: Packet):
         print(packet.data.decode('utf-8'))
         webgui_msg(packet.data.decode('utf-8'))
     elif packet.type == MsgType.HEARTBEAT:
+        heartbeat_sent = False
         latency = time.time() - heartbeat_ts
 
         state = state_dict[packet.data[0]]
@@ -132,6 +134,9 @@ def digest_packet(packet: Packet):
         webgui_msg(heartbeat_txt)
 
         if state == "Low Power Mode":
+            logger.info("Low Power Heartbeat received")
+            heartbeat_sent = False
+            time.sleep(0.5)
             restart_commhandler()  # Robot is entering low power, wait for it to restart communications
 
     elif packet.type == MsgType.IMAGE:
