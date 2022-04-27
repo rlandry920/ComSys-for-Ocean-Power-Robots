@@ -34,7 +34,6 @@ def script():
 
 @app.route('/openWindow', methods=['POST', 'DELETE'])
 def openWindow():
-    print("WINDOW OPENED")
     global activeUsers
     activeUsers += 1
     msg = {
@@ -49,6 +48,7 @@ def openWindow():
 def goToCoordinates():
     data = request.get_json()[0]
     latitude, longitude = getStringCoordinates(data)
+    # Make sure coordinates are valid
     error = checkCoordinates(latitude, longitude)
 
     if error != None:
@@ -64,6 +64,7 @@ def goToCoordinates():
         return message
 
 
+# Hard coded values for GPS
 @app.route('/move', methods=['POST', 'DELETE'])
 def move():
     data = request.get_json()[0]
@@ -104,21 +105,8 @@ def stop():
     return message
 
 
-@app.route('/switchMotor', methods=['POST', 'DELETE'])
-def switchMotor():
-    message = sendMotorSwitchCommand(
-        request.data.decode('ascii'), app.config['commHandler'])
-    msg = {
-        "type": "message",
-        "message": message
-    }
-    app.config['websocketData'].manager.broadcast(json.dumps(msg))
-    return message
-
-
 @app.route('/closeWindow', methods=['POST', 'DELETE'])
 def closeWindow():
-    print("WINDOW CLOSED")
     global activeUsers
     if(activeUsers > 0):
         activeUsers -= 1
