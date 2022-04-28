@@ -334,7 +334,8 @@ Summary
 
 | Function     | Description | Parameters |
 | ------------ | ----------- | ---------- |
-| *__init\_\_* | Constructor | None       |
+| arm | The arm function is called to “kickstart” these motors and will always have to be called first to start controlling the motors. One thing to note is that in order to arm ESC motors they need to be set to the minimum, maximum and stoppage values to start being able to manually control them. As you notice delays are set in between each one to prevent data overflow. | None |
+| setSpeed | The setSpeed function does as it says and changes the speed given a motor and a newSpeed parameter. The main function we use here is pi.set_servo_pulsewidth() that sets the new PWM frequency of a motor. The function starts with setting a local curr speed variable to the motor's current speed. This allows us to use one variable to reference our current speed of whichever motor was passed through. After that is done, a check is put in place to see if our motors are traveling from forwards to backwards or backwards to forwards. If it was then we would reset our motor speed to stop first then go to the new speed. We noticed that if we didn't have this check the motor would not be able to handle the large jump in speed and stop the program. With this check, if it changes directions it will go to the stop value, 1500, first then go to the new speed specified. Another if statement is then used to check to see if the new speed passed through were in between -.15 and .15. During testing, we noticed these numbers were causing the motors to stop the program so if a speed specified were in these ranges we would reset it to be at the stop value. Lastly we set our current value global variable to be the new speed. | `pickMotor`: Pinout value for one of the motors | 
 
 ### Navigation Script
 
