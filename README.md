@@ -78,8 +78,7 @@ The WebGUI can be accessed on port 5000. As such, you will need to append `:5000
 
 ### Using the WebGUI
 
-@Ryan TODO, but keep it brief
-
+After loading the WebGUI you will have access to all of the data from the robot. In order to send GPS coordinates for autonomous navingation you can either maually enter them in the input boxes or drop a pin on the Google Map. There is a button for requesting live control which will then open live video and a control panel with buttons that can be pressed to move the robot. All messages sent and recieved will appear in the log.
 ------
 
 # Software Design
@@ -211,33 +210,60 @@ Assumes RockBLOCK is connected to the RaspberryPi via a USB to TTL cable operati
 
 ### EmailHandler
 
-@Ryan TODO (see SerialHandler and RockBlockHandler for examples)
+Allows the landbase to communiate with satellite via email. Packets can be sent using write_packet and
+an email will be created and sent using the gmail information that it is provided. Any messges sent from
+the satellite will be delievered to the email registered with the satellite. The email will have an attatchment
+that contains the body of the message. The read_packet function that will read any unread emails and if they are
+from the iridium service, it will try to read the message and turn it in to a packet that is able to be read
+by the CommSys
 
-| Function     | Description | Parameters |
-| ------------ | ----------- | ---------- |
-| *__init\_\_* | Constructor | None       |
+| Function       | Description                                                  | Parameters                      |
+| -------------- | ------------------------------------------------------------ | ------------------------------- |
+| *__init\_\_*   | Constructor                                                  | `username`: gmail connected to satellite<br />`password`: gmail login password                           |
+| *start*        | Opens email for reading.                                     | None                            |
+| *close*        | Logs out of email.                                           | None                            |
+| *write_packet* | Sends email to iridium service with packet as an attatchment.| `packet`: Packet object to send |
+| *read_packets*  | Reads all unread emails and tries to create packets from the attatchments. Returns an array of all new packets.|None                |
 
 ------
 
 ## WebGUI
 
-@Ryan TODO
-
-Summary / high-level design details
+This uses HTML, CSS, and JS. It is designed to show all of the data from the robot in a easily readable manner. It utilizes websockets to recieve data and live video feed and communicates with the Flask script using HTTP. 
 
 ### WebGUI Flask
 
-Summary
+This serves as a backend for the landbase in order to keep the UI seperate from all of the
+commands. Each of the routes has a function attatched to it that will be run whenever the route
+is accessed. The landbase can access these functions using HTTP. These function can then send messages
+to the robot using the CommSys and also send messages back to the landbase using the websockets. This
+also packs all of the HTML and JS together.
 
-API (if applicable)
+| Function          | Description                                                      | Parameters |
+| ------------------| ---------------------------------------------------------------- | ---------- |
+| *index*           | Returns HTML component                                           | None       |
+| *script*          | Returns JS component                                             | None       |
+| *reroute_js*      | Returns Decoder.js                                               | None       |
+| *openWindow*      | Increments number of active users and broadcast new total number | None       |
+| *closeWindow*     | Decrements number of active users and broadcast new total number | None       |
+| *getNumUsers*     | Get total number of active users                                 | None       |
+| *goToCoordinates* | Send new coordinates to the robot for autonomous navigations     | `lat_py`: Destination's latitude <br />`long_py`: Destination's longitude|
+| *move*            | Send move command to robot at a specific speed                   | `command`: Direction of movement <br />`speed`: Speed of movement|
+| *stop*            | Send stop command to robot                                       | None  |
+| *reqLiveControl*  | Request live control of robot                                    | `enable`: Whether live control is being requested or stopped|
 
 ### WebGUI Utils
 
-Summary
+Contains utility functions that are used by the Flask script. These functions create packets that can
+be sent to the robot using the CommSys.
 
-| Function     | Description | Parameters |
-| ------------ | ----------- | ---------- |
-| *__init\_\_* | Constructor | None       |
+| Function               | Description                                               | Parameters |
+| ---------------------- | --------------------------------------------------------- | ---------- |
+| *sendDirectionCommand* | Create motor command with values for left and right motor | `direction`: Direction of movement <br> `speed`: Speed of movement <br> `commHandler`: Used to allow Flask script to send packets directly to egress queue     |
+| *sendMoveCommand*      | Create motor command with values for left and right motor | `latitude`: Destination's latitude <br />`longitude`: Destination's longitude|
+| *getStringCoordinates* | Extracts latitude and longitude from dictionary           | `data`: dictionary that contains lat_py and long_py|       
+| *checkCoordinates*     | Check to make sure latitude and longitude are both valid  | `latitude`: Destination's latitude <br />`longitude`: Destination's longitud
+| *liveControl*          | Create live control request packet                        | `enable`: Whether live control is being reuqested or stopped       |
 
 ------
 

@@ -46,10 +46,6 @@ class EmailHandler():
         (retcode, capabilities) = self.mail.login(self.username, self.password)
         self.mail.select("INBOX")
 
-    def clean(text):
-        # clean text for creating a folder
-        return "".join(c if c.isalnum() else "_" for c in text)
-
     def read_packets(self):
         recieved_packets = []
 
@@ -127,18 +123,6 @@ class EmailHandler():
                                     # Force jump to next syncword
                                     self.read_buf = self.read_buf[len(
                                         SYNC_WORD):]
-
-                                # download attachment
-                                # filename = part.get_filename()
-                                # if filename:
-                                #     folder_name = clean(subject)
-                                #     if not os.path.isdir(folder_name):
-                                #         # make a folder for this eself.mail (named after the subject)
-                                #         os.mkdir(folder_name)
-                                #     filepath = os.path.join(folder_name, filename)
-                                #     # download attachment and save it
-                                #     open(filepath, "wb").write(
-                                #         part.get_payload(decode=True))
                     else:
                         # extract content type of eself.mail
                         content_type = msg.get_content_type()
