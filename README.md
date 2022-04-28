@@ -330,7 +330,7 @@ Refer to [this guide](https://spellfoundry.com/docs/programming-the-sleepy-pi-as
 
 @KurbyTODO
 
-Summary
+Used to establish the motor connection as well as handle all motor functionalities. This script should be able to interpret user input data to turn a specified motor in any direction. 
 
 | Function     | Description | Parameters |
 | ------------ | ----------- | ---------- |
