@@ -339,11 +339,15 @@ Used to establish the motor connection as well as handle all motor functionaliti
 
 ### Navigation Script
 
-@Ryan/@Kurby TODO
+Contains functions that take can calculate the best path based to a destination based on
+current coordinates.
 
-Summary
-
-API (if applicable)
+| Function            | Description                                                       | Parameters |
+| --------------------| ----------------------------------------------------------------- | ---------- |
+| *find_bearing*      | Calculates bearing between 2 points                               | `lat1`: Latitude of first point `long1`: Longitude of first point `lat2`: Latitude of second point `long2`: Longitude of second point       |
+| *find_turn_dir*     | Calculates which direction to turn to get to face the correct way | `curr_dir`: Current direction the robot is facing `bearing`: Direction that the robot should be facing         |
+| *find_distance*     | Calculates the distance between 2 points                          |`lat1`: Latitude of first point `long1`: Longitude of first point `lat2`: Latitude of second point `long2`: Longitude of second point       |
+| *find_path_to_coor* | Calculates path between 2 points                                  | `lat1`: Latitude of first point `long1`: Longitude of first point `lat2`: Latitude of second point `long2`: Longitude of second point       |
 
 ------
 
