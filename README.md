@@ -281,7 +281,7 @@ Uses threading to take video frames and encode them for transmission. Supports e
 
 ### gpsNavi (BerryGPS-IMU)
 
-@Qianhui TODO
+Uses I2C interface to read NMEA sentence for interpreting GPS coordinates. 
 
 Summary
 
