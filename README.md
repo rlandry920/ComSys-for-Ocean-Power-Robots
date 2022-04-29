@@ -2,40 +2,40 @@
 
 ## Table of Contents
 
-- ### Overview
+- [Overview](#overview)
 
-  - #### Installation
+  - [Installation](#installation)
 
-  - #### Usage
+  - [Usage](#usage)
 
-- ### Software Design
+- [Software Design](#software-design)
 
-  - #### Comm. System
+  - [CommSystem](#comm-system)
 
-    - Packet
-    - CommHandler
-    - SerialHandler
-    - RockBlockHandler
-    - EmailHandler
+    - [Packet](#packet)
+    - [CommHandler](#commhandler)
+    - [SerialHandler](#serialhandler-previously-radiohandler)
+    - [RockBlockHandler](#rockblockhandler)
+    - [EmailHandler](#emailhandler)
 
-  - #### WebGUI
+  - [WebGUI](#webgui)
 
-    - WebGUI Flask
-    - WebGUI Utils
+    - [WebGUI Flask](#webgui-flask)
+    - [WebGUI Utils](#webgui-utils)
 
-  - #### Sensor Library
+  - [Sensor Library](#sensor-library)
 
-    - CameraHandler
-    - gpsNavi
+    - [CameraHandler](#camerahandler-usb-and-rpi-camera-support)
+    - [gpsNavi](#gpsnavi-berrygps-imu)
 
-  - #### ME Integration
+  - [ME Integration](#me-integration)
 
-    - SleepyPi
-    - escController
-    - Navigation Script
+    - [SleepyPi](#sleepypi)
+    - [escController](#esccontroller)
+    - [Navigation Script](#navigation-script)
 
-  - #### Testing
-
+  - [Testing](#testing)
+  
 # Overview
 
 Repository for Virginia Tech ECE Major Design Experience Team "Triton" (Fall 2021- Spring 2022).
