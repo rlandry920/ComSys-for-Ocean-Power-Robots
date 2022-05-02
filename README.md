@@ -287,7 +287,8 @@ Summary
 
 | Function     | Description | Parameters |
 | ------------ | ----------- | ---------- |
-| *__init\_\_* | Constructor | None       |
+| *__init\_\_* | Constructor | `BerryGPS`: Used to detect BerryIMU and make connection, Automatically receive GPS signal and initialise the accelerometer, gyroscope and compass. <br />`IMU` : Used to allow detect the version of berryIMU in use and check I2C bus address, since the compass and accleerometer are oriented differently on the berryIMUv1, v2, v3, and v4.    |
+| *readCompass*| Used to calculate tilt compensated heading values by applying compass calibration | None                                                         |
 
 ------
 
