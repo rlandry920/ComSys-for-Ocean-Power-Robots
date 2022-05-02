@@ -281,14 +281,13 @@ Uses threading to take video frames and encode them for transmission. Supports e
 
 ### gpsNavi (BerryGPS-IMU)
 
-@ Qianhui: Uses I2C interface to read NMEA sentence for interpreting GPS coordinates. With the
-
-Summary
+Uses I2C interface to read NMEA sentence for interpreting GPS coordinates and calculate tilt compensated heading from IMUcompass. Supports RaspberryGPS-IMUv4 modem. 
 
 | Function     | Description | Parameters |
 | ------------ | ----------- | ---------- |
 | *__init\_\_* | Constructor | `BerryGPS`: Used to detect BerryIMU and make connection, Automatically receive GPS signal and initialise the accelerometer, gyroscope and compass. <br />`IMU` : Used to allow detect the version of berryIMU in use and check I2C bus address, since the compass and accleerometer are oriented differently on the berryIMUv1, v2, v3, and v4.    |
 | *readCompass*| Used to calculate tilt compensated heading values by applying compass calibration | None                                                         |
+| *readGPS*    | Used to read data via I2C from IMU GPS module. Interpretes NMEA sentence data string to and turn out GPS coordinates like longitute and latitute, along with other informations like time stamp, date, and speed. | None                                                         |
 
 ------
 
